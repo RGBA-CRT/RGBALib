@@ -38,7 +38,6 @@ Type COMMTIMEOUTS
 	WriteTotalTimeoutConstant AS DWord
 EndType
 
-
 Type COMSTAT
     fBitFields As Long
     cbInQue    As Long
@@ -89,7 +88,7 @@ Const MM_JOY1ZMOVE = &H3A2
 ' *** joyStick API MMResult
 Const JOYERR_BASE = 160*/
 
-
+'Wave out API
 Declare Function waveOutOpen Lib "winmm" (phwo As LPHWAVEOUT,uDeviceID As DWord,pwfx As LPWAVEFORMATEX,dwCallBack As VoidPtr,dwCallBackInstance As DWord,fdwOpen As DWord) As MMRESULT
 Declare Function waveOutPrepareHeader Lib "winmm" (who As HWAVEOUT,pwh As LPWAVEHDR,cbwh As DWord) As MMRESULT
 Declare Function waveOutWrite Lib "winmm" (hwo As HWAVEOUT,pwh As LPWAVEHDR,cbwh As DWord) As MMRESULT
@@ -99,6 +98,16 @@ Declare Function waveOutClose Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutGetErrorText Lib "winmm" Alias "waveOutGetErrorTextA" (mmrError As MMRESULT,lpText As BytePtr,Size As DWORD) As MMRESULT
 Declare Function waveOutPause Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutRestart Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
+Declare Function waveOutGetDevCaps Lib "winmm" Alias "waveOutGetDevCapsA" ( uDeviceID As Long, lpCaps As BytePtr,uSize As Long) As Long
+
+Declare Function midiOutOpen Lib "winmm.dll" (ByRef lphMidiOut As HANDLE,  uDeviceID As Long,  dwCallback As Long,  dwInstance As Long,  dwFlags As Long) As Long
+Declare Function midiOutClose Lib "winmm.dll" (hMidiOut As HANDLE) As Long
+Declare Function midiOutLongMsg Lib "winmm.dll" (hMidiOut As HANDLE,lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
+Declare Function midiOutReset Lib "winmm.dll" (hMidiOut As HANDLE) As Long
+Declare Function midiOutPrepareHeader Lib "winmm.dll" (hMidiOut As HANDLE, lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
+Declare Function midiOutUnprepareHeader Lib "winmm.dll" (hMidiOut As HANDLE, lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
+Declare Function midiOutShortMsg Lib "winmm.dll" (hMidiOut As HANDLE,  dwMsg As Long) As Long
+Const MIDIMSG(status,channel,data1,data2) = ( ((status<<4) Or channel Or (data1<<8) OR (data2<<16)) )As DWORD
 
 Type WAVEHDR
    lpData As *Byte
@@ -124,7 +133,6 @@ Const CALLBACK_WINDOW = &H10000
 Const WAVE_FORMAT_PCM=1
 Const WAVE_MAPPER = -1
 Const MAXERRORLENGTH = 256
-
 
 Const MMSYSERR_NOERROR = 0
 Const MMSYSERR_ERROR  = (MMSYSERR_BASE + 1)
@@ -156,6 +164,18 @@ Type WAVEFORMATEX_DUMMY
 	cbSize As Word
 End Type
 
+'Waveデバイスの名前構造体
+Type WAVEOUTCAPS
+	wMid As Word
+	wPod As Word
+	vDriverVersion As DWORD
+	szPname[31] As Byte
+	dwFormats As DWORD
+	wChannels As WORD
+	wReserved1 As Word
+	wdSupport As DWORD
+EndType
+
 Const MAXPNAMELEN = 32
 Const MIDIMAPPER = -1
 Type MIDIHDR
@@ -169,14 +189,6 @@ Type MIDIHDR
   dwOffset As Long
   Rev(3) As Long
 End Type
-Declare Function midiOutOpen Lib "winmm.dll" (ByRef lphMidiOut As HANDLE,  uDeviceID As Long,  dwCallback As Long,  dwInstance As Long,  dwFlags As Long) As Long
-Declare Function midiOutClose Lib "winmm.dll" (hMidiOut As HANDLE) As Long
-Declare Function midiOutLongMsg Lib "winmm.dll" (hMidiOut As HANDLE,lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
-Declare Function midiOutReset Lib "winmm.dll" (hMidiOut As HANDLE) As Long
-Declare Function midiOutPrepareHeader Lib "winmm.dll" (hMidiOut As HANDLE, lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
-Declare Function midiOutUnprepareHeader Lib "winmm.dll" (hMidiOut As HANDLE, lpMidiOutHdr As *MIDIHDR,  uSize As Long) As Long
-Declare Function midiOutShortMsg Lib "winmm.dll" (hMidiOut As HANDLE,  dwMsg As Long) As Long
-Const MIDIMSG(status,channel,data1,data2) = ( ((status<<4) Or channel Or (data1<<8) OR (data2<<16)) )As DWORD
 
 '---------------------------
 '  JoySticks
@@ -247,12 +259,12 @@ EndType
 '  Console 
 '---------------------------
 Declare Function SetConsoleTextAttribute Lib "kernel32" (hConsoleOutput As HANDLE, wAttributes As Word) As Long
-'Declare Function GetConsoleScreenBufferInfo Lib "kernel32" (hConsoleOutput As HANDLE, lpConsoleScreenBufferInfo As *CONSOLE_SCREEN_BUFFER_INFO) As Long
 Declare Function GetConsoleScreenBufferInfo Lib "kernel32" (hConsoleOutput As HANDLE, dwCursorPosition As DWord) As Long
-'Declare Function SetConsoleCursorPosition2 Lib "kernel32"  Alias "SetConsoleCursorPosition" (hConsoleOutput As HANDLE, ByRef dwCursorPosition As COORD) As Long
 Declare Function SetConsoleTitle Lib "kernel32" Alias "SetConsoleTitleA" ( lpConsoleTitle As BytePtr) As Long 
-'Declare Function SetConsoleTextAttribute Lib "kernel32" (hConsoleOutput As HANDLE, wAttributes As Word) As Long
 Declare Function GetConsoleTitle Lib "kernel32" Alias "GetConsoleTitleA" ( lpConsoleTitle As BytePtr,  nSize As Long) As Long 
+Declare Function ReadConsole Lib "kernel32" Alias "ReadConsoleA" ( hConsoleInput As HANDLE, lpBuffer As BytePtr, nNumberOfCharsToRead As Long, ByRef lpNumberOfCharsRead As DWord, lpReserved As Long) As Long
+Declare Function WriteConsole Lib "kernel32" Alias "WriteConsoleA" (hConOut As HANDLE, lpszText As BytePtr, lpcText As Long, ByRef NumWrite As DWord, NotUsed As Long) As Long
+Declare Function SetConsoleFont Lib "kernel32.dll" (hOut As BytePtr, dwFontSize As Long) As Long
 
 #define FOREGROUND_BLUE      &H0001 ' text color contains blue.
 #define FOREGROUND_GREEN     &H0002 ' text color contains green.
@@ -295,11 +307,7 @@ Declare Function inet_ntoa Lib "wsock32.dll" (ByRef addr As sockaddr) As BytePtr
 Declare Function gethostname Lib "WSOCK32.DLL" (hostname AS BytePtr,HostLen As Long) As Long
 Declare Function setsockopt Lib "wsock32.dll" ( s As Long,  level As Long,  optname As Long, optval As BytePtr,  optlen As Long) As Long
 Declare Function WSAGetLastError Lib "WSOCK32.DLL" () As Long
-'Declare Function WSAStartup Lib "WSOCK32.DLL" ( wVersionRequired As Integer, lpWSAData As WSADATA ) As Long
-'Declare Function WSACleanup Lib "WSOCK32.DLL" () As Long
 Declare Function inet_addr Lib "ws2_32" (cp As *Byte) As DWord
-'Declare Function gethostbyname Lib "WSOCK32.DLL" ( hostname As BytePtr) As Long
-'Declare Function gethostbyname Lib "WSOCK32.DLL" ( hostname As BytePtr) As Long
 
 Type in_addr
 	S_addr As DWord
@@ -338,6 +346,78 @@ Type LINGER_STRUCT
   l_linger As Integer         ' Linger timeout in seconds.
 End Type
 
+'---------------------------
+'  Service
+'---------------------------
+'http://d.hatena.ne.jp/s-kita/20120421/1335012806
+Declare Function ControlService Lib "AdvApi32.dll" (hService As HANDLE , dwControl As DWord ,ByRef lpServiceStatus As SERVICE_STATUS) As Long
+Declare Function CloseServiceHandle Lib "advapi32.dll" ( hSCObject As Long) As Long
+Declare Function OpenSCManager Lib "advapi32.dll" Alias "OpenSCManagerA" ( lpMachineName As String,  lpDatabaseName As String,  dwDesiredAccess As Long) As Long
+Declare Function OpenService Lib "advapi32.dll" Alias "OpenServiceA" ( hSCManager As Long,  lpServiceName As String,  dwDesiredAccess As Long) As Long
+'Declare Function QueryServiceStatus Lib "advapi32.dll" ( hService As Long, ByRef lpServiceStatus As SERVICE_STATUS) As Long
+Declare Function StartService Lib "advapi32.dll" Alias "StartServiceA" ( hService As Long,  dwNumServiceArgs As Long,  lpServiceArgVectors As Long) As Long
+
+type SERVICE_STATUS
+	dwServiceType				As DWord
+	dwCurrentState				As DWord
+	dwControlsAccepted			As DWord
+	dwWin32ExitCode				As DWord
+	wServiceSpecificExitCode	As DWord
+	dwCheckPoint				As DWord
+	dwWaitHint					As DWord
+EndType
+
+Const SC_MANAGER_CONNECT = &H1
+Const SERVICE_START = &H10
+Const SERVICE_STOP = &H20
+Const SERVICE_CONTROL_STOP = &H1
+
+
+
+'---------------------------
+'  Taskbar
+'---------------------------
+Declare Function Shell_NotifyIcon Lib "shell32.dll" Alias "Shell_NotifyIconA" ( dwMessage As Long,ByRef lpData As NOTIFYICONDATA) As Long
+
+'タスクバー関連
+Const NIM_ADD = &H0
+Const NIM_MODIFY = &H1
+Const NIM_DELETE = &H2
+Const NIF_MESSAGE = &H1
+Const NIF_ICON = &H2
+Const NIF_TIP = &H4
+Const NIF_STATE = &H8
+Const NIF_INFO = &H10
+Const NIF_GUID = &H20
+'フラグ
+Const NIN_BALLOONSHOW 		= &H402		'NIN_BALLOONSHOW (0x402) ：バルーンが表示されたとき
+Const NIN_BALLOONHIDE 		= &H403		'NIN_BALLOONHIDE (0x403) ：バルーンが消えたとき（アイコンが消えたときなど）
+Const NIN_BALLOONTIMEOUT	= &H404		'NIN_BALLOONTIMEOUT (0x404) ：タイムアウトによりバルーンが消えたとき
+Const NIN_BALLOONUSERCLICK 	= &H405		'NIN_BALLOONUSERCLICK (0x405) ：ユーザーのマウスクリックによってバルーンが消えたとき
+'バルーンアイコン
+Const NIIF_NONE = 0
+Const NIIF_INFO = 1
+Const NIIF_WARNING = 2
+Const NIIF_ERROR = 3
+Const NIIF_NOSOUND=&H10
+
+Type NOTIFYICONDATA
+   cbSize As DWord
+   hWnd As HWND
+   uID As DWord
+   uFlags As DWord
+   uCallbackMessage As DWord
+   hIcon As DWord
+   szTip[127] As Byte
+   dwState As DWord
+   dwStateMask As DWord
+   szInfo[255] As Byte
+   uTimeout As DWord
+   szInfoTitle[63] As Byte
+   dwInfoFlags As DWord
+End Type
+
+
 
 '---------------------------
 '  Other Win32API
@@ -346,7 +426,6 @@ End Type
 Declare Function CreateAcceleratorTable Lib "user32" Alias "CreateAcceleratorTableA" (ByRef lpacl As ACCEL, i As Long) As HACCEL
 Declare Function TranslateAccelerator Lib "user32" Alias "TranslateAcceleratorA" (hWnd As HWND, hAccTable As HACCEL, ByRef lpMsg As MSG) As Long
 Declare Function DestroyAcceleratorTable Lib "user32" (hAccel As HACCEL) As Long
-'Declare Function IsDialogMessage Lib "user32" Alias "IsDialogMessageA" (hDlg As HWND, ByRef lpMsg As MSG) As Long
 
 Const FVIRTKEY = TRUE
 Const FNOINVERT = &H02
@@ -371,9 +450,11 @@ Declare Function EnumProcesses Lib "psapi.dll" (lpidProcess As DWord,cb As DWord
 '構造化例外
 Declare Sub RaiseException Lib "kernel32" Alias "RaiseException" (dwExceptionCode As DWORD,  dwExceptionFlags As DWORD,  nNumberOfArguments As DWORD, lpArguments As Long) 
 Declare Function SetUnhandledExceptionFilter Lib "kernel32" Alias "SetUnhandledExceptionFilter" (lpTopLevelExceptionFilter As Dword) As Long 
+
 /* Exception Records */
 Const EXCEPTION_NONCONTINUABLE     = 1
 Const EXCEPTION_MAXIMUM_PARAMETERS = 15
+
 '構造化例外情報
 Type _EXCEPTION_POINTERS
 	ExceptionRecord As *_EXCEPTION_RECORD
@@ -388,9 +469,9 @@ Type _EXCEPTION_RECORD
 	ExceptionInformation[EXCEPTION_MAXIMUM_PARAMETERS] As *Dword
 EndType
 
-
 Declare Function SetRectEmpty Lib "user32.dll" (ByRef lpRect As RECT) As Long
 Declare Function TrackPopupMenuEx Lib "user32.dll" (hMenu As Long,fuFlags As Long,x As Long,y As Long,hWnd As Long,ByRef lptpm As TPMPARAMS) As Long
+
 Const SQL_DDL_INDEX	= &H000000AA
 Const DDL_READWRITE	= &H00000000
 Const DDL_READONLY	= &H00000001
@@ -431,7 +512,7 @@ Const MSG_DESTROYED = WM_APP + 2
 
 Const MSG_SET_B_TEXT =255
 
-' Win32API
+' Hook
 TypeDef HHOOK = HANDLE
 Const WH_CBT = 5
 Const HCBT_CREATEWND = 3
@@ -461,11 +542,11 @@ Const AW_VER_POSITIVE=&H3       ' 上から下に向かってアニメートさせます。
 Const AW_VER_NEGATIVE=&H8       ' 下から上に向かってアニメートさせます。
 Const AW_HOR_POSITIVE=&H1       ' 左から右に向かってアニメートさせます。
 Const AW_HOR_NEGATIVE=&H2       ' 右から左に向かってアニメートさせます。
-Const AW_CENTER=&H10      ' 中心からアニメートさせます。
-Const AW_SLIDE=&H40000   ' スライドアニメーションを使います。
-Const AW_BLEND=&H80000   ' フェードイン効果を使います。
-Const AW_HIDE= &H10000   ' ウィンドウを非表示にします。
-Const AW_ACTIVATE=&H20000   ' ウィンドウをアクティブにします。
+Const AW_CENTER=&H10     		' 中心からアニメートさせます。
+Const AW_SLIDE=&H40000  		' スライドアニメーションを使います。
+Const AW_BLEND=&H80000 			' フェードイン効果を使います。
+Const AW_HIDE= &H10000   		' ウィンドウを非表示にします。
+Const AW_ACTIVATE=&H20000   	' ウィンドウをアクティブにします。
 '==============================================================
 
 Declare Function ShellExecuteEx Lib "shell32" _
@@ -500,11 +581,7 @@ Const MEM_RELEASE As Long = &H8000
 Declare Function InterlockedIncrement Lib "kernel32" (V As *Long) As Long
 Declare Function InterlockedDecrement Lib "kernel32" (V As *Long) As Long
 
-/*--------- API宣言部 -----------*/
-'タスクバーとメニュー
-Declare Function Shell_NotifyIcon Lib "shell32.dll" Alias "Shell_NotifyIconA" ( dwMessage As Long,ByRef lpData As NOTIFYICONDATA) As Long
 
-Declare Function waveOutGetDevCaps Lib "winmm" Alias "waveOutGetDevCapsA" ( uDeviceID As Long, lpCaps As BytePtr,uSize As Long) As Long
 'Other
 Declare Function SetLastError Lib "kernel32" (dwErrCode As DWORD) As DWord
 'Mutex
@@ -517,73 +594,15 @@ Declare Function CreateDIBSection Lib "gdi32" ( hdc As Long,ByRef pBitmapInfo As
 'Declare Function TransparentBlt Lib "msimg32.dll" (hDC As HDC,X As Long,Y As Long,Width As Long,Height As Long,hSrcDC As HDC,SrcX As Long,  SrcY As Long,SrcWidth As Long,SrcHeight As Long,TransparentColor As Long) As Long 
 
 
-/* Exception Records */
-
-/*--------- 構造体宣言部 -----------*/
-'タスクバー通知領域構造体
-	Type NOTIFYICONDATA
-	   cbSize As DWord
-	   hWnd As HWND
-	   uID As DWord
-	   uFlags As DWord
-	   uCallbackMessage As DWord
-	   hIcon As DWord
-	   szTip[127] As Byte
-	   dwState As DWord
-	   dwStateMask As DWord
-	   szInfo[255] As Byte
-	   uTimeout As DWord
-	   szInfoTitle[63] As Byte
-	   dwInfoFlags As DWord
-	End Type
-
-
-'Waveデバイスの名前構造体
-	Type WAVEOUTCAPS
-		wMid As Word
-		wPod As Word
-		vDriverVersion As DWORD
-		szPname[31] As Byte
-		dwFormats As DWORD
-		wChannels As WORD
-		wReserved1 As Word
-		wdSupport As DWORD
-	EndType
-
 
 
 /*--------- 定数宣言部 -----------*/
-'タスクバー関連
-	'APIコマンド
-	Const NIM_ADD = &H0
-	Const NIM_MODIFY = &H1
-	Const NIM_DELETE = &H2
-	Const NIF_MESSAGE = &H1
-	Const NIF_ICON = &H2
-	Const NIF_TIP = &H4
-	Const NIF_STATE = &H8
-	Const NIF_INFO = &H10
-	Const NIF_GUID = &H20
-	'フラグ
-	Const NIN_BALLOONSHOW 			= &H402		'NIN_BALLOONSHOW (0x402) ：バルーンが表示されたとき
-	Const NIN_BALLOONHIDE 			= &H403		'NIN_BALLOONHIDE (0x403) ：バルーンが消えたとき（アイコンが消えたときなど）
-	Const NIN_BALLOONTIMEOUT		= &H404		'NIN_BALLOONTIMEOUT (0x404) ：タイムアウトによりバルーンが消えたとき
-	Const NIN_BALLOONUSERCLICK 	= &H405		'NIN_BALLOONUSERCLICK (0x405) ：ユーザーのマウスクリックによってバルーンが消えたとき
-	'バルーンアイコン
-	Const NIIF_NONE = 0
-	Const NIIF_INFO = 1
-	Const NIIF_WARNING = 2
-	Const NIIF_ERROR = 3
-	Const NIIF_NOSOUND=&H10
+Const MUTEX_ALL_ACCESS	= &H001F0001
 
-	
-
-	Const MUTEX_ALL_ACCESS	= &H001F0001
-
-	Const SMTO_NORMAL	= &H00000000
-	Const SMTO_BLOCK	= &H00000001
-	Const SMTO_ABORTIFHUNG	= &H00000002
-	Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
+Const SMTO_NORMAL	= &H00000000
+Const SMTO_BLOCK	= &H00000001
+Const SMTO_ABORTIFHUNG	= &H00000002
+Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
 /*
 
 	Const TBM_GETPOS	= &H00000400
@@ -624,42 +643,12 @@ Declare Function CreateDIBSection Lib "gdi32" ( hdc As Long,ByRef pBitmapInfo As
 */
 'Declare Function AllocConsole Lib "kernel32" () As Long
 'Declare Function FreeConsole Lib "kernel32" () As Long
-Declare Function ReadConsole Lib "kernel32" Alias "ReadConsoleA" ( _
-    hConsoleInput As HANDLE, lpBuffer As BytePtr, nNumberOfCharsToRead As Long, _
-    ByRef lpNumberOfCharsRead As DWord, lpReserved As Long) As Long
-Declare Function WriteConsole Lib "kernel32" Alias "WriteConsoleA" (
-    hConOut As HANDLE, lpszText As BytePtr, lpcText As Long, ByRef NumWrite As DWord, NotUsed As Long) As Long
 
 'Const STD_INPUT_HANDLE      = -10   ' 標準入力のハンドルを取得
 'Const STD_OUTPUT_HANDLE     = -11   ' 標準出力のハンドルを取得
 'Const STD_ERROR_HANDLE      = -12   ' 標準エラーのハンドル取得
 
-/*Audio Service Resetter*/
-'http://d.hatena.ne.jp/s-kita/20120421/1335012806
-Declare Function ControlService Lib "AdvApi32.dll" (hService As HANDLE , dwControl As DWord ,ByRef lpServiceStatus As SERVICE_STATUS) As Long
-Declare Function CloseServiceHandle Lib "advapi32.dll" ( hSCObject As Long) As Long
-Declare Function OpenSCManager Lib "advapi32.dll" Alias "OpenSCManagerA" ( lpMachineName As String,  lpDatabaseName As String,  dwDesiredAccess As Long) As Long
-Declare Function OpenService Lib "advapi32.dll" Alias "OpenServiceA" ( hSCManager As Long,  lpServiceName As String,  dwDesiredAccess As Long) As Long
-'Declare Function QueryServiceStatus Lib "advapi32.dll" ( hService As Long, ByRef lpServiceStatus As SERVICE_STATUS) As Long
-Declare Function StartService Lib "advapi32.dll" Alias "StartServiceA" ( hService As Long,  dwNumServiceArgs As Long,  lpServiceArgVectors As Long) As Long
-
-type SERVICE_STATUS
-	dwServiceType				As DWord
-	dwCurrentState				As DWord
-	dwControlsAccepted			As DWord
-	dwWin32ExitCode				As DWord
-	wServiceSpecificExitCode	As DWord
-	dwCheckPoint				As DWord
-	dwWaitHint					As DWord
-EndType
-
-Const SC_MANAGER_CONNECT = &H1
-Const SERVICE_START = &H10
-Const SERVICE_STOP = &H20
-Const SERVICE_CONTROL_STOP = &H1
-
 Declare Function vcsin CDECL Lib "msvcrt.dll" Alias "sin" (x AS Double) As Double
-Declare Function SetConsoleFont Lib "kernel32.dll" (hOut As BytePtr, dwFontSize As Long) As Long
 Type MARGINS
 	cxLeftWidth As Long
 	cxRightWidth As Long
