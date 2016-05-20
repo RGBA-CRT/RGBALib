@@ -668,12 +668,16 @@ Public
 	     EndIf
 	End Function
 
+	Function readDw() AS Long
+		read(VarPtr(readDw),sizeof(DWord))
+	End Function
+
 	Function write(source AS BytePtr,size As DWord) AS Long
 		WriteFile(hFile,source,size,VarPtr(write),ByVal NULL)
 	End Function
 
 	Function getFilePtr() AS DWord
-		nowFilePointer=SetFilePointer(hFile,0,0,FILE_CURRENT)
+		getFilePtr=SetFilePointer(hFile,0,0,FILE_CURRENT)
 	EndFunction
 
 	Sub setFilePtr(fp AS DWord)
