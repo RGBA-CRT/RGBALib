@@ -40,6 +40,13 @@ Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword) A
 	ErrMes=MessageBox(hOwner,Text,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag)
 EndFunction
 
+'printfのMessageBox版
+Function MessageBoxf(hWnd AS HWND,lpCaption AS BytePtr,uType AS DWord,lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) AS Long
+	Dim buf[1024] As Byte	'wsprintfがそもそも1024バイトしか対応してない
+	wsprintf(buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+	MessageBoxf=MessageBox(hWnd,buf,lpCaption,uType)
+EndFunction
+
 'EXEC 終了コード取得
 Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 	Dim si AS STARTUPINFO 
