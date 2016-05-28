@@ -240,6 +240,23 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 	free2(CRLFD)
 EndFunction
 
+'strcmpの文字数指定バージョン
+Function win_strncmpi(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
+	if CompareString(LOCALE_SYSTEM_DEFAULT,NORM_IGNORECASE,str1,Length,str2,Length) = CSTR_EQUAL Then
+		win_strncmpi=TRUE
+	Else
+		win_strncmpi=FALSE
+	endif
+EndFunction
+
+Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
+	if CompareString(LOCALE_SYSTEM_DEFAULT,0,str1,Length,str2,Length) = CSTR_EQUAL Then
+		win_strncmp=TRUE
+	Else
+		win_strncmp=FALSE
+	endif
+EndFunction
+
 'ファイルパスが正しいかチェック
 Function IsFilePath(FilePath AS BytePtr) As Byte
 	Dim hFile AS HANDLE,dFilePath As BytePtr
@@ -425,16 +442,15 @@ Public
 		GetCmdString=MakeStr(table[index])
 	EndFunction
 
-	Function CmdCmp(text1 AS BytePtr,cmdIndex AS DWord) AS Byte
-		if cmdIndex>count Then CmdCmp=FALSE : ExitFunction
-		Dim cmp As Long
-		cmp=lstrcmpi(text1,table[cmdIndex])
-		if cmp=0 Then
-			CmdCmp=TRUE
+	'コマンドラインオプションチェック用
+	Function cmpCmd(index As DWord,cmptext As BytePtr) As Byte
+		if index>count Then cmpCmd=FALSE : ExitFunction
+		if lstrcmpi(table[index],cmptext)=0 Then
+			cmpCmd=TRUE
 		Else
-			CmdCmp=FALSE
+			cmpCmd=FALSE
 		endif
-	End Function
+	Endfunction
 
 	Function ParseCommandLine(text AS BytePtr) AS Long
 		if cmdStr<>0 Then Destroy()

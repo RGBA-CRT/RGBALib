@@ -1,5 +1,10 @@
 'RGBA_CRT's Windows API Defines For ActiveBasic
+#include <api_commctrl.sbp>
+#include <api_mmsys.sbp>
+
 Const WAIT_OBJECT_0	= &H00000000
+
+
 
 '----------------------------------
 '    Windows File Path API
@@ -77,7 +82,6 @@ Const TWOSTOPBITS	= &H00000002
 '---------------------------
 '  Windows Media API
 '---------------------------
-#include <api_mmsys.sbp>
 /*
 Const MMSYSERR_BASE = 0
 ' *** Message from Joystick
@@ -604,7 +608,7 @@ Const SMTO_NORMAL	= &H00000000
 Const SMTO_BLOCK	= &H00000001
 Const SMTO_ABORTIFHUNG	= &H00000002
 Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
-
+/*
 
 	Const TBM_GETPOS	= &H00000400
 	Const TBM_GETRANGEMIN	= &H00000401
@@ -641,7 +645,7 @@ Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
 	Const TBM_GETBUDDY	= &H00000421
 	Const TBM_SETUNICODEFORMAT	= &H00002005
 	Const TBM_GETUNICODEFORMAT	= &H00002006
-
+*/
 'Declare Function AllocConsole Lib "kernel32" () As Long
 'Declare Function FreeConsole Lib "kernel32" () As Long
 
