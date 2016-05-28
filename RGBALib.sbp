@@ -55,7 +55,6 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 	Dim r As DWORD
 
 	if CreateProcess(App,CmdLine,ByVal NULL,ByVal NULL,FALSE,CREATE_NEW_CONSOLE,NULL,NULL,si,pi)=FALSE Then'CREATE_NEW_CONSOLE を 0にすれば非表示
-		'CreateProcess Error
 		RunAndGetExitCode=-1
 		ExitFunction
 	endif
@@ -154,33 +153,19 @@ Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As D
 *FOUND
 	Dim Line As BytePtr
 	Dim EP As Long
-	'SP=j-InStrByteRev(Src,&H0A,j,&H0D)
 	SerchTextLine=TRUE
 *RETRY
 	if Src[j-SP]= &H0A Or Src[j-SP]=&H0D Then if isFirst<>0 then SP--: Goto *RETRY
 	EP=InStrByte(Src+j,&H0D,sLen)'+j
-'	Print Chr$(Src[j-SP])+"["+Hex$(Src[j-SP])+"]"
-'	Print Chr$(Src[j-SP+1])+"["+Hex$(Src[j-SP+1])+"]"
 	if EP=0 then EP=sLen
 	if EP-SP<=1 then ExitFunction
-/*	Line=calloc(EP+SP)
-	memcpy(Line,Src+j-SP,EP+SP)
-	Line[EP+SP]=0
-	ListText2.AddStr(Line)
-	SerchTextLine=j+EP*/
 EndFunction
 
+'この関数は作り直したほうがいい
 Function InStrByte(Data As BytePtr,Serch As Byte,DataSize As DWORD) As Long
 	Dim i as DWORD,si As Dword, sLen As Long
-	'Dim tmp1 As Byte,tmp2 As Byte
-	'sLen=lstrlen(Serch)
 	Do
-		if Data[i]=Serch then
-			InStrByte=i	
-			'debug
-			ExitDo
-		'	i++
-		endif
+		if Data[i]=Serch then	InStrByte=i	: ExitDo
 		if i=DataSize then
 			InStrByte=-1
 			ExitFunction
@@ -202,35 +187,76 @@ Function DelDQ(Text As BytePtr) As BytePtr
 	memcpy(DelDQ,tmp,txlen+1)
 EndFunction
 
+'LF,CR -> CRLF     戻り値は別メモリなので各自開放すること
+Function ConvCRLF(Text As *Byte) As BytePtr
+	Dim ti As Long
+	dim ci as long
+	Dim l as Long
+	Dim lp as Long
+	Dim CRLFD As *Byte
+
+	ti=0
+	ci=0
+
+	l= lstrlen(Text)
+	CRLFD=calloc2(l+5)
+
+	Do
+		if Text[ti] = &H0A then				'0A(LF)が発見され、
+			if Text[ti-1] <> &H0D then		'0D(CR)その後ろがCR以外の場合
+				CRLFD[ci]=&H0D				'CRを追加
+				ci++
+				l++
+				lp++
+				CRLFD=realloc2(CRLFD,l+lp*2)	'増えた分のメモリ確保
+				CRLFD[ci]=&H0A				'そしてLFを追加
+			Else
+				CRLFD[ci]=&H0A				'違ったら（正しくCRLFになってたら）そのまま
+			Endif
+		Elseif Text[ti] = &H0D then			'↑と大体同じ
+			if Text[ti+1] <> &H0A then
+				CRLFD[ci]=&H0D
+				ci++
+				l++
+				lp++
+				CRLFD=realloc2(CRLFD,l+lp*2)
+				CRLFD[ci]=&H0A
+			Else
+				CRLFD[ci]=&H0D
+			Endif
+		Else
+			CRLFD[ci]=Text[ti]				'改行文字と無関係の場合
+		Endif 
+		ti++
+		ci++
+		if ti = l Then ExitDo		
+	Loop
+
+	'メモリを確保し、戻り値をセット
+	ConvCRLF=calloc2(lstrlen(CRLFD)<<1)
+	lstrcpy(ConvCRLF,CRLFD)	
+
+	'消す
+	free2(CRLFD)
+EndFunction
+
 'ファイルパスが正しいかチェック
 Function IsFilePath(FilePath AS BytePtr) As Byte
-	Dim hFile AS HANDLE
-	hFile=CreateFile(FilePath,GENERIC_READ,FILE_SHARE_READ OR FILE_SHARE_WRITE,ByVal NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL)
+	Dim hFile AS HANDLE,dFilePath As BytePtr
+	if FilePath[0]=&H22 Then 
+		dFilePath=DelDQ(FilePath)
+	Else
+		dFilePath=FilePath
+	endif
+	hFile=CreateFile(dFilePath,GENERIC_READ,FILE_SHARE_READ OR FILE_SHARE_WRITE,ByVal NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL)
 	If hFile=INVALID_HANDLE_VALUE Then
 		IsFilePath=FALSE
 	Else
 		IsFilePath=TRUE
 		CloseHandle(hFile)
 	EndIf
+	if FilePath<>dFilePath Then free(dFilePath)
 EndFunction
-
-Function win_strcmpi(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
-	if CompareString(LOCALE_SYSTEM_DEFAULT,NORM_IGNORECASE,str1,Length,str2,Length) = CSTR_EQUAL Then
-		win_strcmpi=TRUE
-	Else
-		win_strcmpi=FALSE
-	endif
-EndFunction
-
-Function win_strcmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
-	if CompareString(LOCALE_SYSTEM_DEFAULT,0,str1,Length,str2,Length) = CSTR_EQUAL Then
-		win_strcmp=TRUE
-	Else
-		win_strcmp=FALSE
-	endif
-EndFunction
-
-
 
 '------------------------------
 '		Network library
@@ -255,60 +281,8 @@ Function URLDecode(pFrom As BytePtr) As BytePtr
    Loop
 End Function
 
-Function GetHttpStatusText(HttpStatusNo As Long)
-	Dim STATUS AS BytePtr
-
-	'出典：http://www.tohoho-web.com/ex/http.htm
-	Select Case HttpStatusNo
-		Case 100 : STATUS="[Continue] 処理を継続しています。続きのリクエストを送信してください。"
-		Case 101 : STATUS="[Switching Protocols Upgrade] ヘッダで指定したプロトコルに変更して再要求してください。"
-		Case 200 : STATUS="[OK] 成功しました！"
-		Case 201 : STATUS="[Created Location] ヘッダで指定した場所に新しいコンテンツが作成されました。"
-		Case 202 : STATUS="[Accepted] 要求は受理されました。ただし処理は完了していません。"
-		Case 203 : STATUS="[Non-Authoritative Information] 応答ヘッダはオリジナルサーバーが返したものとは異なりますが、処理は成功です。"
-		Case 204 : STATUS="[No Content] コンテンツはありませんが、処理は成功しました。"
-		Case 205 : STATUS="[Reset Content] 要求を受理したので、現在のコンテンツ（画面）を破棄してください。"
-		Case 206 : STATUS="[Partial Content] コンテンツを一部のみ返却します。"
-		Case 300 : STATUS="[Multiple Choices] コンテンツ入手方法について複数の選択肢があります。"
-		Case 301 : STATUS="[Moved Permanently Location ] ヘッダで指定された別の場所に移動しました。"
-		Case 302 : STATUS="[Found	Location] ヘッダで指定された別の場所に見つかりました。そちらを見てください。"
-		Case 303 : STATUS="[See Other Location] ヘッダで指定された他の場所を見てください。"
-		Case 304 : STATUS="[Not Modified] 更新されていません。If-Modified-Since ヘッダを用いた場合に返却されます。"
-		Case 305 : STATUS="[Use Proxy] Location ヘッダで指定したプロキシを使用してください。"
-		Case 306 : STATUS="[Unused] 未使用のステータスが帰ってきました。きっと未来のサーバー。"
-		Case 307 : STATUS="[Temporary Redirect] 別の場所に一時的に移動しています。"
-		Case 400 : STATUS="[Bad Request] 要求が不正です。 > 大体こっち側のバグ"
-		Case 401 : STATUS="[Unauthorized] 認証されてません。"
-		Case 402 : STATUS="[Payment Required] 支払いが必要です。"
-		Case 403 : STATUS="[Forbidden] アクセスが認められていません。"
-		Case 404 : STATUS="[404 Not Found] ファイルが見つかりません。"
-		Case 405 : STATUS="[Method Not Allowed] 指定したメソッドはサポートされていません。"
-		Case 406 : STATUS="[Not Acceptable] 許可されていません。"
-		Case 407 : STATUS="[Proxy Authentication Required] リクエストがタイムアウトしました。"
-		Case 408 : STATUS="[Request Timeout] リクエストがタイムアウトしました。"
-		Case 409 : STATUS="[Conflict] リクエストがコンフリクト（衝突・矛盾）しました。"
-		Case 410 : STATUS="[Gone] 要求されたコンテンツは無くなってしまいました"
-		Case 411 : STATUS="[Length Required] Content-Length ヘッダを付加して要求してください。"
-		Case 412 : STATUS="[Precondition Failed] If-... ヘッダで指定された条件に合致しませんでした。"
-		Case 413 : STATUS="[Request Entity Too Large]	要求されたエンティティが大きすぎます。"
-		Case 414 : STATUS="[Request-URI Too Long] 要求された URI が長すぎます。"
-		Case 415 : STATUS="[Unsupported Media Type] サポートされていないメディアタイプです。"
-		Case 416 : STATUS="[Requested Range Not Satisfiable] 要求されたレンジが不正です。"
-		Case 417 : STATUS="[Expectation Failed	Expect] ヘッダで指定された拡張要求は失敗しました。"
-		Case 500 : STATUS="[Internal Server Error]	サーバーで予期しないエラーが発生しました。"
-		Case 501 : STATUS="[Not Implemented] 指定されたHTTPメゾッドは実装されていません。"
-		Case 502 : STATUS="[Bad Gateway] ゲートウェイが不正です。"
-		Case 503 : STATUS="[Service Unavailable] サービスは利用可能ではありません。"
-		Case 504 : STATUS="[Gateway Timeout] ゲートウェイがタイムアウトしました。"
-		Case 505 : STATUS="[HTTP Version Not Supported] このHTTPバージョンはサポートされていません。"
-		Case -1 : GetHttpStatusText="[ERROR] このプログラム側でのエラーが発生しました。" : ExitSub
-		Case Else : STATUS="[UNKNOW] 未知のステータス番号です。"
-	EndSelect
-
-	GetHttpStatusText=STATUS
-
-End Function
-
+'軽量化のため、移動
+'Function GetHttpStatusText(HttpStatusNo As Long)
 
 '------------------------------
 '		Console library
@@ -353,72 +327,18 @@ Sub SetConsoleIcon(IconID AS DWord)
 	SendMessage(GetConsoleWndHandle(),WM_SETICON,ICON_SMALL,LoadImage(GetModuleHandle(0),IconID As BytePtr,IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR) As Long)
 EndSub
 
-Const PRINTF_BUFFER = 1024*10
+Const PRINTF_BUFFER = 1025
 Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-	Dim Buf AS BytePtr,ret AS Long,Ptr[13] AS DWord
-	Buf=calloc(lstrlen(lpFormat)+PRINTF_BUFFER)
-	if Buf=0 Then MessageBox(0,ex"RGBALib - Line 37\nメモリ確保に失敗しました。",0,0)
-'	Ptr[0]=a:	Ptr[1]=b:	Ptr[2]=c:	Ptr[3]=d:	Ptr[4]=e:	Ptr[5]=f:	Ptr[6]=g:	Ptr[7]=h:	Ptr[8]=i:	Ptr[9]=j:	Ptr[10]=k:		Ptr[11]=l:		Ptr[12]=m:		Ptr[13]=n:	
+	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long,Ptr[13] AS DWord
 	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
-'	Print MakeStr(Buf);
 	PrintPtr(Buf,ret)
-	free(Buf)	
 EndSub
 
 Sub PrintPtr(Text As BytePtr)(Length AS Long)
 	Dim a AS Long
 	if Length=0 then Length=lstrlen(Text)
 	WriteFile(_System_hConsoleOut,Text,Length,VarPtr(Length),ByVal NULL)
-'	WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE),Text,Length,NULL
-Endsub
-
-Sub StringArrayViewer(Data As *Byte)
-	dim i as long
-	dim L as long
-	Dim Tx[2] As Byte
-	dim TB As byte
-
-	L=lstrlen(Data)
-
-	Print "Base Adress : 0x"+Hex$(Data)
-	Print "Bytes       : "+Str$(L)+"Byte"
-	Print ex"\nText : ";
-
-	For i = 0 to L-1
-		if TB <> 0 then
-			Print "["+Chr$(TB)+Chr$(Data[i])+"] ";
-			TB=0
-			i++
-		Endif
-
-		if Data[i]=0 then ExitFor
-
-		if Data[i] >= 128 then
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),2)
-			Print " [>] ";
-			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE),1 Or 2 Or 4)
-			TB=Data[i]
-		else
-			Print " ["+Chr$(Data[i])+"] ";
-			TB=0
-		endif
-	Next i
-
-	Print ex"\nData : ";
-
-	For i = 0 to L-1
-		wsprintf(Tx,"%02X",Data[i])
-		Print "["+MakeStr(Tx)+"] ";
-	Next i
-
-	Print ex"\nN[i] : ";
-
-	For i = 0 to L-1
-		wsprintf(Tx,"%02d",i)
-		Print "["+MakeStr(Tx)+"] ";
-	Next i
-
-	Print ex"\n"
+	'WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE),Text,Length,NULL
 Endsub
 
 Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,ShowHeader AS BOOL) AS DWORD
@@ -480,7 +400,7 @@ private
 	EndSub
 
 	Function SkipDQ(text AS BytePtr,txlen AS Long,offset AS Long) AS Long
-		Print
+	'	Print
 		Dim i AS Long
 		For i = offset To txlen
 			if text[i]=Asc(ex"\q") then ExitFor	
@@ -497,12 +417,24 @@ Public
 	EndFunction
 
 	Function GetCmd(index AS DWord) AS BytePtr
+		if index>count Then GetCmd="":ExitFunction
 		GetCmd=table[index]
 	EndFunction
 
 	Function GetCmdString(index AS DWord) AS String
 		GetCmdString=MakeStr(table[index])
 	EndFunction
+
+	Function CmdCmp(text1 AS BytePtr,cmdIndex AS DWord) AS Byte
+		if cmdIndex>count Then CmdCmp=FALSE : ExitFunction
+		Dim cmp As Long
+		cmp=lstrcmpi(text1,table[cmdIndex])
+		if cmp=0 Then
+			CmdCmp=TRUE
+		Else
+			CmdCmp=FALSE
+		endif
+	End Function
 
 	Function ParseCommandLine(text AS BytePtr) AS Long
 		if cmdStr<>0 Then Destroy()

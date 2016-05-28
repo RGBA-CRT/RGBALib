@@ -99,6 +99,7 @@ Declare Function waveOutGetErrorText Lib "winmm" Alias "waveOutGetErrorTextA" (m
 Declare Function waveOutPause Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutRestart Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutGetDevCaps Lib "winmm" Alias "waveOutGetDevCapsA" ( uDeviceID As Long, lpCaps As BytePtr,uSize As Long) As Long
+Declare Function waveOutGetNumDevs Lib "winmm" () As Long
 
 Declare Function midiOutOpen Lib "winmm.dll" (ByRef lphMidiOut As HANDLE,  uDeviceID As Long,  dwCallback As Long,  dwInstance As Long,  dwFlags As Long) As Long
 Declare Function midiOutClose Lib "winmm.dll" (hMidiOut As HANDLE) As Long
@@ -603,7 +604,7 @@ Const SMTO_NORMAL	= &H00000000
 Const SMTO_BLOCK	= &H00000001
 Const SMTO_ABORTIFHUNG	= &H00000002
 Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
-/*
+
 
 	Const TBM_GETPOS	= &H00000400
 	Const TBM_GETRANGEMIN	= &H00000401
@@ -640,7 +641,7 @@ Const SMTO_NOTIMEOUTIFNOTHUNG	= &H00000008
 	Const TBM_GETBUDDY	= &H00000421
 	Const TBM_SETUNICODEFORMAT	= &H00002005
 	Const TBM_GETUNICODEFORMAT	= &H00002006
-*/
+
 'Declare Function AllocConsole Lib "kernel32" () As Long
 'Declare Function FreeConsole Lib "kernel32" () As Long
 
