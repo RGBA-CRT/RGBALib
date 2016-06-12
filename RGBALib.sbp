@@ -4,6 +4,14 @@
 		HTTP系をクラスに
 */
 
+'---------------
+'	Macros
+'---------------
+Const Abs16bit(b) = (b xor (b >> 15)) - (b >> 15) As Word
+
+'----------------------------
+'		GUI Utility
+'----------------------------
 Sub PumpMessage() 
 	Dim msg As MSG
  	while PeekMessage( msg, NULL, 0, 0, PM_REMOVE ) 
@@ -84,6 +92,9 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 	RunAndGetExitCode=exitCode
 Endfunction
 
+'----------------------
+'		Binaly
+'----------------------
 Sub ChangeEndianDW(ByRef in As DWord)
 	Dim Tmp As Byte
 	Dim value As *Byte
@@ -117,6 +128,10 @@ Function InByteBin(Data As BytePtr,Size As DWORD,Bytes As Byte)(Jump AS Long) As
 		if i => Size then InByteBin=-1: ExitDo
 	Loop
 EndFunction
+
+'---------------
+'	Strings
+'--------------
 
 'BM法文字列サーチ（指定文字列内に特定の文字列があるか？＝True or false）(バグあり)
 Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As DWORD) As Byte
@@ -358,6 +373,12 @@ Sub PrintPtr(Text As BytePtr)(Length AS Long)
 	'WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE),Text,Length,NULL
 Endsub
 
+Sub PauseConsole()
+	Dim buf AS DWord
+	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),ex"[PRESS ANY KEY]\0",16,VarPtr(buf),ByVal NULL)
+	ReadFile(GetStdHandle(STD_INPUT_HANDLE),VarPtr(buf),1,VarPtr(buf),ByVal NULL)
+EndSub
+
 Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,ShowHeader AS BOOL) AS DWORD
 	Dim Tmp[&H20] As Byte,i As Long,Adr As DWORD
 	
@@ -410,7 +431,7 @@ private
 	count as Long
 	table AS *BytePtr
 
-	Sub Destroy()
+	Sub freeMem()
 		if cmdStr<>0 Then free(cmdStr):cmdStr=0
 		if table<>0 Then free(table):table=0
 		count=0
@@ -425,8 +446,15 @@ private
 		SkipDQ=i-offset+1
 	End Function
 Public
-	Sub CommandLine()
-		ParseCommandLine(GetCommandLine())
+	Sub CommandLine()(text As BytePtr)
+		if text=0 Then
+			ParseCommandLine(GetCommandLine())
+		Else
+			ParseCommandLine(text)
+		endif
+	EndSub
+	Sub ~CommandLine()
+		freeMem()
 	EndSub
 
 	Function GetCount() AS Long
@@ -434,7 +462,7 @@ Public
 	EndFunction
 
 	Function GetCmd(index AS DWord) AS BytePtr
-		if index>count Then GetCmd="":ExitFunction
+		if index>count-1 Then GetCmd="":ExitFunction
 		GetCmd=table[index]
 	EndFunction
 
@@ -453,53 +481,55 @@ Public
 	Endfunction
 
 	Function ParseCommandLine(text AS BytePtr) AS Long
-		if cmdStr<>0 Then Destroy()
+'		OutputDebugString(ex"called\n")
+		if cmdStr<>0 Then freeMem()
 		'確保
 		Dim txlen AS Long
 		txlen=lstrlen(text)
-		cmdStr=calloc(txlen+2)
+		cmdStr=calloc(txlen+5)
 		memcpy(cmdStr,text,txlen+1)
 
 		'スペースを数える
-		count=0
+		Dim ExpectedCount=0 As Long
 		Dim i aS Long
 		For i = 0 To txlen
 			if cmdStr[i]=Asc(" ") Then 
-				count++
+				ExpectedCount++
 			endif
 		Next i
 
 		'スペースの分だけテーブルを確保,構築
-		table=calloc(sizeof(BytePtr)*(count+1))
-		Dim it AS Long
-		table[0]=cmdStr
-		For i = 0 To txlen
-			'ダブルクォーテーション
-			if text[i]=Asc(ex"\q") then
-				i+=SkipDQ(cmdStr,txlen,i+1)
-			endif
+		table=calloc(sizeof(BytePtr)*(ExpectedCount+2)+4)
+		count = 0
 
-			'スペースを見つけたら、0で埋めてテーブルに次の文字列の開始位置を記録
-			if cmdStr[i]=Asc(" ") Then
+		Dim it=0 AS Long	'table index
+		For i = 0 To txlen-1
+			if cmdStr[i]<>Asc(" ") and cmdStr[i]<>0 Then
+				'register to table
+				table[it]=cmdStr+i
 				it++
-				For i = i To txlen
-			'		if text[i]=Asc(ex"\q") then	i+=SkipDQ(cmdStr,txlen,i+1):Print "!"
 
-					if cmdStr[i]<>Asc(" ") Then
-						table[it]=cmdStr+i
-						i--
-						ExitFor
-					Endif
-					cmdStr[i]=0
+				For i = i To txlen
+					if cmdStr[i]=Asc(" ") Then Exitfor
+					if text[i]=Asc(ex"\q") then	i+=SkipDQ(cmdStr,txlen,i+1)':Print "!"
 				Next i
-			Endif
+
+				'tarminate 1 opt
+				cmdStr[i]=0
+			endif 
 		Next i
+		count=it
 		it++
 		table[it]=0
-		count=it-1
 	EndFunction
 End Class
+/*
+	1.空白以外の文字発見＝有効な文字列の先頭　-＞　テーブルに保存
+	2.次のスペースまでスキップ
+		2.5 そのうちにダブルクォーテーション見つけたら、スキップ -> DQ内のスペースは分割されない
+	3.goto 1 (ｺﾚにより、余分なスペースがいなくなる)
 
+*/
 
 'ファイルパス用クラス
 Class FilePath
