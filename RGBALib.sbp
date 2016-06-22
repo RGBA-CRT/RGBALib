@@ -316,6 +316,52 @@ End Function
 '軽量化のため、移動
 'Function GetHttpStatusText(HttpStatusNo As Long)
 
+'-------------------------
+'  Dynamic DLL Loader
+'-------------------------
+Type DLL_FUNCTION_CELL
+	'関数ポインタを格納するための変数へのポインタ
+	ptr AS VoidPtr
+	'DLLから探す関数名
+	alias AS BytePtr
+EndType
+
+'TST_DecoderDllLoaderへ改名、Decodersフォルダ内にデコーダを格納するように変更。↓の関数はRGBALibに移動
+Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr) As HINSTANCE
+	Dim hDll AS HINSTANCE
+	Dim errMes AS BytePtr
+
+	hDll=LoadLibrary(DllName)
+	if hDll=0 Then
+		errMes=calloc(1024)
+		if opt_text=0 Then opt_text=""
+		wsprintf(errMes,ex"%s%sのロードに失敗しました。\nDLLが存在するか確認してください。\nErrorCode : %d",DllName,opt_text,GetLastError())
+		Goto *DDL_RETURN_ERROR
+	endif
+
+	Dim i AS Long
+	For i = 0 To count-1
+		if func_list[i].ptr=0 or func_list[i].alias=0 Then Goto *DDL_RETURN_ERROR
+		SetDWord(func_list[i].ptr,GetProcAddress(hDll,func_list[i].alias))	'Func_List.ptrの先に関数ポインタを格納
+		if GetDWord(func_list[i].ptr)=NULL Then
+			errMes=calloc(1024)
+			if opt_text=0 Then opt_text=""
+			wsprintf(errMes,ex"%sから必要な関数が見つかりませんでした。\n正しいバージョンのDLLか確認してください。\nProcName : %s\nErrorCode : %d",DllName,func_list[i].alias,GetLastError())
+			Goto *DDL_RETURN_ERROR
+		Endif
+	Next i
+
+	DynamicDllLoader=hDll
+	ExitFunction
+*DDL_RETURN_ERROR
+	DynamicDllLoader=0
+	if hDll<>0 Then FreeLibrary(hDll)
+	if errMes<>0 Then 
+		TST_ErrMes(errMes,STR_ERR_DLL_LOAD_TITLE,0)
+		free(errMes)
+	endif
+EndFunction
+
 '------------------------------
 '		Console library
 '------------------------------
@@ -793,6 +839,50 @@ Public
 
 End Class
 
+'自分のEXEファイルがあるディレクトリを扱う
+Class BinalyDirectory
+Private
+	BinalyRoot AS BytePtr
+	TempString AS BytePtr
+	p AS Word
+Public
+	Sub BinalyDirectory()
+		Dim exePath[MAX_PATH+1] AS Byte,i AS Long
+		GetModuleFileName(NULL,exePath,MAX_PATH)
+		For i = lstrlen(exePath) To 0 Step -1
+			If exePath[i]=&H5C then ExitFor' \ だったら
+		Next i
+		i++
+		exePath[i]=0'￥以下を潰す
+		BinalyRoot=calloc(i+2)
+		memcpy(BinalyRoot,exePath,i+1)
+		p=(i+1) AS Word
+	EndSub
+
+	Sub ~BinalyDirectory()
+		if BinalyRoot<>0 Then free(BinalyRoot)
+		if TempString<>0 Then free(TempString)
+	EndSub
+
+	Function GetBinDir() AS BytePtr
+		GetBinDir=BinalyRoot
+	End Function
+
+	Function MakePath(subPath AS BytePtr) AS BytePtr
+		freeTmp()
+		TempString=calloc(p+lstrlen(subPath)+1)
+		wsprintf(TempString,"%s%s",BinalyRoot,subPath)
+		MakePath=TempString
+	End Function
+
+	Function GetMadePath() AS BytePtr
+		GetMadePath=TempString
+	EndFunction
+
+	Sub freeTmp()
+		if TempString<>0 Then free(TempString):TempString=0
+	EndSub
+End Class
 
 '------------------------------------------------------
 '			たぶんもう使わない関数

@@ -427,6 +427,12 @@ End Type
 '---------------------------
 '  Other Win32API
 '---------------------------
+'LoadLibrary
+Const DONT_RESOLVE_DLL_REFERENCES	= &H00000001
+Const LOAD_LIBRARY_AS_DATAFILE	= &H00000002
+Const LOAD_WITH_ALTERED_SEARCH_PATH	= &H00000008
+Declare Function LoadLibraryEx Lib "Kernel32" Alias "LoadLibraryExA" (lpLibFileName AS BytePtr,hFile AS HANDLE,dwFlags AS DWord) As HINSTANCE
+
 'ホットキー
 Declare Function CreateAcceleratorTable Lib "user32" Alias "CreateAcceleratorTableA" (ByRef lpacl As ACCEL, i As Long) As HACCEL
 Declare Function TranslateAccelerator Lib "user32" Alias "TranslateAcceleratorA" (hWnd As HWND, hAccTable As HACCEL, ByRef lpMsg As MSG) As Long
