@@ -21,9 +21,10 @@ Sub PumpMessage()
 EndSub
 
 Function GetDlgItemHex(hWnd AS HWND) AS Long
-	Dim buf as BytePtr
-	buf=calloc(GetWindowTextLength(hWnd)+5)
-	GetWindowText(hWnd,buf,GetWindowTextLength(hWnd)+1)
+	Dim buf as BytePtr,Length AS Long
+	Length=GetWindowTextLength(hWnd)
+	buf=calloc(Length+5)
+	GetWindowText(hWnd,buf,Length+1)
 	Dim i as Long,mode as Long
 	Do
 		if buf[i]=&H20 Then 
@@ -38,6 +39,15 @@ Function GetDlgItemHex(hWnd AS HWND) AS Long
 		ExitDo		
 	Loop
 	GetDlgItemHex=Val(buf+i) AS Long
+	free(buf)
+EndFunction
+
+Function GetDlgItemDouble(hWnd AS HWND) AS Double
+	Dim buf as BytePtr,Length AS Long
+	Length=GetWindowTextLength(hWnd)
+	buf=calloc(Length+5)
+	GetWindowText(hWnd,buf,Length+1)
+	GetDlgItemDouble=Val(buf)' AS Long
 	free(buf)
 EndFunction
 
@@ -668,7 +678,7 @@ Private
 	hFile As HANDLE
 	path AS FilePath
 Public
-	Function openFile(Path As BytePtr,_Mode AS DWORD) AS Long
+	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS Long
 		Dim CreateMode AS Dword
 		If _Mode=GENERIC_READ then
 			CreateMode=OPEN_EXISTING
@@ -678,24 +688,25 @@ Public
 	    	CreateMode=OPEN_ALWAYS
 		EndIf
 
-		hFile=CreateFile(Path, _Mode, FILE_SHARE_READ, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
+		hFile=CreateFile(inPath, _Mode, FILE_SHARE_READ, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
 		If hFile=INVALID_HANDLE_VALUE then 
 			openFile = FALSE
 			hFile=0
 		Else
 			openFile = TRUE
 		Endif
+		path.SetPath(inPath)
 	EndFunction
 
 	Function read(dest AS BytePtr,size As DWord) AS Long
 	     Dim dwAB As BytePtr
-	     read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As BytePtr
+	     read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
 	     If read=TRUE And dwAB=0 then
-	          read=-1 As BytePtr
+	          read=-1 As Long
 	     ElseIf read=FALSE then
-	          read=-2 As BytePtr
+	          read=-2 As Long
 	     Else
-	          read=dwAB
+	          read=dwAB AS Long
 	     EndIf
 	End Function
 

@@ -1,0 +1,439 @@
+'==========================================================================================
+' 名  称：TABコントロール操作クラス
+' 概  要：TABコントロールの操作を纏めたクラス
+' 作　成：hanchan
+' 日　付：2005.10.06
+' Ｖａｒ：0.1
+' ※参照：BackSearchABのregonさんの投稿
+'2016/6～　RGBA_CRTによる改変あり。問題があれば削除します。
+'==========================================================================================
+'== 定数 ==================================================================================
+Const TCIF_TEXT             = &H0001
+Const TCM_FIRST             = &H1300
+Const TCM_INSERTITEM        = (TCM_FIRST + 7)
+Const TCM_GETCURSEL         = (TCM_FIRST + 11)
+Const TCN_FIRST             = (0-550)
+Const TCN_SELCHANGE         = (TCN_FIRST - 1)
+
+Type TCITEM
+    mask					As DWord
+    dwState					As DWord
+    dwStateMask				As DWord
+    pszText					As BytePtr
+    cchTextMax				As Long
+    iImage					As Long
+    lParam					As DWord
+End Type
+
+Const TAB_X					= (5)
+Const TAB_Y					= (25)
+Const TAB_W					= (10)
+Const TAB_H					= (30)
+
+Type TAB_INFO
+	hTabWnd					As HWND
+	pszTabName				As BytePtr
+End Type
+'==========================================================================================
+
+'==========================================================================================
+' 名  称：TABコントロール操作クラス
+' 概  要：TABコントロールの操作を纏めたクラス
+'==========================================================================================
+Class TabCtrClass
+	hTabWndParent			As HWND			'タブの親ウィンドウのハンドル
+	hTabWnd					As HWND			'タブコントロールのハンドル
+	nTabx					As Long			'タブコントロールのX			
+	nTaby					As Long			'タブコントロールのY
+	nTabWidth				As Long			'タブコントロールの幅
+	nTabHeight				As Long			'タブコントロールの高さ
+	tTabInfo				As *TAB_INFO	'タブ情報
+	nTabCildCnt				As Long			'タブの数
+	ptTabInfo				As *TAB_INFO	'タブ情報先頭アドレス
+	nTabWidthMarg			As Long			'タブコントロールと親ウインドウの余白
+	nTabHeightMarg			As Long			'タブコントロールと親ウインドウの余白
+
+Public
+
+	'======================================================================================
+	' 関数名：コンストラクタ関数
+	' 説  明：コンストラクタ
+	' 呼  出：なし
+	' 引き数：なし
+	' 戻り値：なし
+	'======================================================================================
+	Sub TabCtrClass()
+
+		'初期化
+		hTabWndParent = 0
+		hTabWnd = 0
+		nTabWidth = 0
+		nTabHeight = 0
+		tTabInfo = NULL
+		nTabCildCnt = 0
+
+	End Sub
+
+	'======================================================================================
+	' 関数名：デストラクタ関数
+	' 説  明：デストラクタ
+	' 呼  出：なし
+	' 引き数：なし
+	' 戻り値：なし
+	'======================================================================================
+	Sub ~TabCtrClass()
+
+		free(ptTabInfo)
+
+	End Sub
+
+	'======================================================================================
+	' 関数名：CreateTab関数
+	' 説  明：タブコントロールをクリエイトする
+	' 呼  出：CreateTab(hWndParent As HWND, x As Long, y As Long, 
+	'					nWidth As Long, nHeight As Long) As Integer
+	' 引き数：hWndParent		As HWND		(I/ )	親ウインドウハンドル
+	' 　　　　x					As Long		(I/ )	横(x)位置
+	' 　　　　y					As Long		(I/ )	縦(y)位置
+	' 　　　　nWidth			As Long		(I/ )	幅
+	' 　　　　nHeight			As Long		(I/ )	高さ
+	' 戻り値：なし
+	'======================================================================================
+	Function CreateTab(hWndParent As HWND, x As Long, y As Long,
+						nWidth As Long, nHeight As Long) As Integer
+
+		Dim tRect					As RECT
+		Dim nTabcrWidth				As Long			'親ウインドウの幅
+		Dim nTabcrHeight			As Long			'親ウインドウの高さ
+
+		'タブウインドウをクリエイトする。
+		hTabWnd = CreateWindowEx(
+			NULL, _
+			"SysTabControl32", _
+			"", _											'タイトル（使用しない）
+			WS_CHILD or WS_VISIBLE or WS_CLIPSIBLINGS, _	'スタイル
+			x, y, nWidth, nHeight, _						'位置とサイズ(x,y,w,h)
+			hWndParent, _									'親ウィンドウのハンドル
+			NULL, _											'ID
+			GetModuleHandle(0), _							'インスタンスハンドル
+			NULL _
+			)
+
+		'タブコントロールの幅と高さを退避
+		nTabx = x
+		nTaby = y
+		nTabWidth = nWidth
+		nTabHeight = nHeight
+
+		'親ウインドウのハンドル退避
+		hTabWndParent = hWndParent
+
+		'親ウインドウの情報を取得する
+		GetWindowRect(hTabWndParent, tRect)
+		nTabcrWidth = tRect.right - tRect.left
+		nTabcrHeight = tRect.bottom - tRect.top
+		nTabWidthMarg = nTabcrWidth - nTabWidth
+		nTabHeightMarg = nTabcrHeight - nTabHeight
+	End Function
+
+	'======================================================================================
+	' 関数名：AddTab関数
+	' 説  明：タブコントロールにタブを追加する
+	' 呼  出：AddTab(pszTitle　As BytePtr, pszTabWndName As BytePtr) As Integer
+	' 引き数：pszTitle			As BytePtr	(I/ )	タブタイトル
+	' 　　　　pszTabWndName		As BytePtr	(I/ )	タブ子画面
+	' 戻り値：なし
+	'======================================================================================
+	Function AddTab(pszTitle As BytePtr, pszTabWndName As BytePtr) As Integer
+
+		Dim tci					As TCITEM
+		Dim nSize				As Long
+
+		'フォントを設定
+		SendMessage(hTabWnd, WM_SETFONT, hFont_MainWnd As DWord, 0)
+
+		'新規タブを追加する
+		tci.mask = TCIF_TEXT
+		tci.pszText = pszTitle
+		SendMessage(hTabWnd, TCM_INSERTITEM, nTabCildCnt, VarPtr(tci) As DWord)
+
+		'タブ数をカウントする
+		nTabCildCnt = nTabCildCnt + 1
+
+		'タブ情報の領域を確保する
+		nSize = SizeOf(TAB_INFO)
+		if (nTabCildCnt = 1) Then
+			'1件目の場合、callocで確保する
+			ptTabInfo = calloc(nSize)
+			tTabInfo = ptTabInfo
+		Else
+			'2件目以降の場合、rellocで確保する
+			ptTabInfo = realloc(ptTabInfo, nSize * nTabCildCnt)
+			tTabInfo = ptTabInfo + (nSize * (nTabCildCnt - 1))
+		End If
+
+		'タブの子画面を設定する
+		tTabInfo->hTabWnd = CreateDialog(hTabWnd, pszTabWndName)
+		tTabInfo->pszTabName = pszTabWndName
+
+		'子画面を表示する。
+		SetParent(tTabInfo->hTabWnd As HWND, hTabWnd) 
+		ShowWindow(tTabInfo->hTabWnd As HWND, SW_HIDE)
+		MoveWindow(tTabInfo->hTabWnd As HWND, TAB_X, TAB_Y,
+											nTabWidth - TAB_W, nTabHeight - TAB_H, TRUE)
+
+	End Function
+
+	Sub SetStartPage(index AS Long)
+		ShowWindow(TabCls->GetTabWndHandle(index) As HWND, SW_SHOW)
+	EndSub
+
+	'======================================================================================
+	' 関数名：SelChangeTab関数
+	' 説  明：タブ切替時に画面の表示を切り替える。
+	' 呼  出：SelChangeTab(nmHdr As BytePtr) As Integer
+	' 引き数：nmHdr				As BytePtr	(I/ )	Notifyパラメータ
+	' 戻り値：なし
+	'======================================================================================
+	Function SelChangeTab(nmHdr As *NMHDR) As Integer
+		Dim i					As Long		'汎用ループ変数
+		Dim nSize				As Long
+		Dim nSelTab				As Long
+
+		'タブ変更のイベントか判定する
+		If (nmHdr->code = TCN_SELCHANGE) Then
+			nSize = SizeOf(TAB_INFO)
+			nSelTab = SendMessage(nmHdr->hwndFrom As HWND, TCM_GETCURSEL, 0, 0)
+
+			For i = 0 To nTabCildCnt - 1
+
+				tTabInfo = ptTabInfo + (nSize * i)
+				ShowWindow(tTabInfo->hTabWnd As HWND, SW_HIDE)
+
+			Next i
+
+			For i = 0 To nTabCildCnt - 1
+
+				tTabInfo = ptTabInfo + (nSize * i)
+				If (nSelTab = i) Then
+					SetParent(tTabInfo->hTabWnd As HWND, hTabWnd) 
+					ShowWindow(tTabInfo->hTabWnd As HWND, SW_SHOW)
+					MoveWindow(tTabInfo->hTabWnd As HWND, TAB_X, TAB_Y,
+											nTabWidth - TAB_W, nTabHeight - TAB_H, TRUE)
+				End If
+
+			Next i
+		End If
+
+	End Function
+
+	'======================================================================================
+	' 関数名：ResizeTab関数
+	' 説  明：親ウインドウの情報によりタブのサイズを変更する
+	' 呼  出：ResizeTab(x As Long, y As Long) As Integer
+	' 引き数：x					As Long		(I/ )	親ウインドウの幅
+	' 　　　　y					As Long		(I/ )	親ウインドウの高さ
+	' 戻り値：なし
+	'======================================================================================
+	Function ResizeTab(x As Long, y As Long) As Integer
+		Dim i						As Long		'汎用ループ変数
+		Dim nSize					As Long
+		Dim nSelTab					As Long
+
+		'タブコントロールのサイズを変更する。
+		nTabWidth = x - nTabWidthMarg
+		nTabHeight = y - nTabHeightMarg
+		MoveWindow(hTabWnd, nTabx, nTaby, nTabWidth, nTabHeight, TRUE)
+
+		'表示中のタブを取得する。
+		nSize = SizeOf(TAB_INFO)
+		nSelTab = SendMessage(hTabWnd, TCM_GETCURSEL, 0, 0)
+		For i = 0 To nTabCildCnt - 1
+
+			tTabInfo = ptTabInfo + (nSize * i)
+			ShowWindow(tTabInfo->hTabWnd As HWND, SW_HIDE)
+
+		Next i
+
+		For i = 0 To nTabCildCnt - 1
+
+			tTabInfo = ptTabInfo + (nSize * i)
+
+			If (nSelTab = i) Then
+				SetParent(tTabInfo->hTabWnd As HWND, hTabWnd) 
+				ShowWindow(tTabInfo->hTabWnd As HWND, SW_SHOW)
+				MoveWindow(tTabInfo->hTabWnd As HWND, TAB_X, TAB_Y,
+										nTabWidth - TAB_W, nTabHeight - TAB_H, TRUE)
+			End If
+
+		Next i
+
+	End Function
+
+	'======================================================================================
+	' 関数名：SetPosTab関数
+	' 説  明：タブコントロールの位置を変更する。（と言いつつサイズも変更）
+	' 呼  出：SetPosTab(x As Long, y As Long,
+	'							nWidth As Long, nHeight As Long) As Integer
+	' 引き数：x					As Long		(I/ )	親ウインドウの幅
+	' 　　　　y					As Long		(I/ )	親ウインドウの高さ
+	' 　　　　nWidth			As Long		(I/ )	幅
+	' 　　　　nHeight			As Long		(I/ )	高さ
+	' 戻り値：なし
+	'======================================================================================
+	Function SetPosTab(x As Long, y As Long, nWidth As Long, nHeight As Long) As Integer
+
+		Dim i						As Long		'汎用ループ変数
+		Dim nSize					As Long
+		Dim nSelTab					As Long
+		Dim tRect					As RECT
+		Dim nTabcrWidth				As Long			'親ウインドウの幅
+		Dim nTabcrHeight			As Long			'親ウインドウの高さ
+
+		'タブコントロールを移動する
+		MoveWindow(hTabWnd, x, y, nWidth, nHeight, TRUE)
+
+		'タブコントロールの値を再設定
+		nTabx = x
+		nTaby = y
+		nTabWidth = nWidth
+		nTabHeight = nHeight
+		
+		'表示中のタブを取得する。
+		nSize = SizeOf(TAB_INFO)
+		nSelTab = SendMessage(hTabWnd, TCM_GETCURSEL, 0, 0)
+		For i = 0 To nTabCildCnt - 1
+
+			tTabInfo = ptTabInfo + (nSize * i)
+			ShowWindow(tTabInfo->hTabWnd As HWND, SW_HIDE)
+
+		Next i
+
+		For i = 0 To nTabCildCnt - 1
+
+			tTabInfo = ptTabInfo + (nSize * i)
+
+			If (nSelTab = i) Then
+				SetParent(tTabInfo->hTabWnd As HWND, hTabWnd) 
+				ShowWindow(tTabInfo->hTabWnd As HWND, SW_SHOW)
+				MoveWindow(tTabInfo->hTabWnd As HWND, TAB_X, TAB_Y,
+										nTabWidth - TAB_W, nTabHeight - TAB_H, TRUE)
+			End If
+
+		Next i
+
+		'親ウインドウの情報を取得する
+		GetWindowRect(hTabWndParent, tRect)
+		nTabcrWidth = tRect.right - tRect.left
+		nTabcrHeight = tRect.bottom - tRect.top
+		nTabWidthMarg = nTabcrWidth - nTabWidth
+		nTabHeightMarg = nTabcrHeight - nTabHeight
+
+	End Function
+
+	'======================================================================================
+	' 関数名：VisibleTab関数
+	' 説  明：タブコントロールのを表示・非表示を切り替える
+	' 呼  出：VisibleTab(nMode As Long) As Integer
+	' 引き数：nMode				As Long			(I/ )	モード（TRUE:非表示 FALSE:表示）
+	' 戻り値：なし
+	'======================================================================================
+	Function VisibleTab(nMode As Long) As Integer
+
+		If (nMode = TRUE) Then
+			ShowWindow(hTabWnd, SW_HIDE)
+		Else
+			ShowWindow(hTabWnd, SW_SHOW)
+		End If
+
+	End Function
+
+	'======================================================================================
+	' 関数名：EnableTab関数
+	' 説  明：タブコントロールの有効・無効を切り替える
+	' 呼  出：EnableTab(nMode As Long) As Integer
+	' 引き数：nMode				As Long			(I/ )	モード（TRUE:有効 FALSE:無効）
+	' 戻り値：なし
+	'======================================================================================
+	Function EnableTab(nMode As Long) As Integer
+
+		If (nMode = TRUE) Then
+			EnableWindow(hTabWnd, TRUE)
+		Else
+			EnableWindow(hTabWnd, FALSE)
+		End If
+
+	End Function
+
+	'======================================================================================
+	' 関数名：EnablePageTab関数
+	' 説  明：タブコントロールの有効・無効を切り替える
+	' 呼  出：EnablePageTab(nPage As Long, nMode As Long) As Integer
+	' 引き数：nPage				As Long			(I/ )	対象頁（0～)
+	' 　　　　nMode				As Long			(I/ )	モード（TRUE:有効 FALSE:無効）
+	' 戻り値：TRUE :正常
+	' 　　　　FALSE:異常
+	'======================================================================================
+	Function EnablePageTab(nPage As Long, nMode As Long) As Long
+		Dim nSize					As Long
+		Dim nSelTab					As Long
+
+		'返却値初期化
+		EnablePageTab = TRUE
+
+		'タブ数を超えている場合、異常終了
+		If (nPage < 0) Or (nPage >= nTabCildCnt) Then
+
+			EnablePageTab = FALSE
+
+		End If
+		'タブ情報サイズを取得
+		nSize = SizeOf(TAB_INFO)
+
+		'タブ情報の先頭アドレスを移動
+		tTabInfo = ptTabInfo + (nSize * nPage)
+
+		If (nMode = TRUE) Then
+			EnableWindow(tTabInfo->hTabWnd As HWND, TRUE)
+		Else
+			EnableWindow(tTabInfo->hTabWnd As HWND, FALSE)
+		End If
+
+	End Function
+
+	'return tab count 0～
+	Function GetTabCount() As Long
+		GetTabCount=nTabCildCnt-1
+	EndFunction
+
+	'タブが持つ子ウィンドウハンドルを取得
+	Function GetTabWndHandle(nPage As Long) As HANDLE
+		if nTabCildCnt<nPage Then ExitFunction
+		GetTabWndHandle=ptTabInfo[nPage].hTabWnd
+	EndFunction
+
+	'タブの子ウィンドウのコントロールを取得
+	Function GetTabWndItem(nPage As Long,ControlID As Long) As HANDLE
+		if nTabCildCnt<nPage Then ExitFunction
+		GetTabWndItem = GetDlgItem(ptTabInfo[nPage].hTabWnd,ControlID)
+	EndFunction
+
+	'チェックボックス設定 True / False
+	Sub SetCheckBox(Page AS DWord, Ctrl As DWORD, TF As Byte)
+		if TF=TRUE Then
+			SendMessage(TabCls->GetTabWndItem(Page, Ctrl), BM_SETCHECK, BST_CHECKED, 0)
+		Else 
+			SendMessage(TabCls->GetTabWndItem(Page, Ctrl), BM_SETCHECK, BST_UNCHECKED, 0)
+		Endif
+	EndSub
+
+	'チェックボックスの状態取得 True / False
+	Function GetCheckBox(Page AS DWord, Ctrl As Long) As Byte
+		if SendMessage(TabCls->GetTabWndItem(Page, Ctrl), BM_GETCHECK, 0, 0) = BST_CHECKED then
+			GetCheckBox=TRUE
+		Else
+			GetCheckBox=FALSE
+		endif
+	endfunction
+
+End Class
