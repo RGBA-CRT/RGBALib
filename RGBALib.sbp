@@ -8,6 +8,7 @@
 '	Macros
 '---------------
 Const Abs16bit(b) = (b xor (b >> 15)) - (b >> 15) As Word
+Const ChangeEndianWord(x) = ((x>>8) and &HFF) or (x and &HFF)<<8
 
 '----------------------------
 '		GUI Utility
@@ -186,6 +187,27 @@ Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As D
 	if EP-SP<=1 then ExitFunction
 EndFunction
 
+'未デバッグ
+Function FindStr(text AS BytePtr,size aS DWord,target AS BytePtr) aS Long
+	Dim i AS Long,tarLen AS Long
+	tarLen=lstrlen(target)
+	Do
+		if text[i]=target[0] Then
+			if CompareString(LOCALE_SYSTEM_DEFAULT,0,text+i,tarLen,target,tarLen)=CSTR_EQUAL Then
+				ExitDo
+			Else
+				i+=tarLen
+			End If
+		Else If text[i]=0 Then
+			FindStr=-1
+			ExitFunction
+		End If
+		i++
+		if i>size Then ExitDo
+	Loop
+	FindStr=i
+End Function
+
 'この関数は作り直したほうがいい
 Function InStrByte(Data As BytePtr,Serch As Byte,DataSize As DWORD) As Long
 	Dim i as DWORD,si As Dword, sLen As Long
@@ -300,6 +322,13 @@ Function IsFilePath(FilePath AS BytePtr) As Byte
 	if FilePath<>dFilePath Then free(dFilePath)
 EndFunction
 
+Function sprintfStr(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) AS String
+	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
+	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+	sprintfStr=MakeStr(Buf)
+EndFunction
+
+
 '------------------------------
 '		Network library
 '------------------------------
@@ -326,9 +355,9 @@ End Function
 '軽量化のため、移動
 'Function GetHttpStatusText(HttpStatusNo As Long)
 
-'-------------------------
-'  Dynamic DLL Loader
-'-------------------------
+'-------------------------------------
+'  Dynamic DLL Loader + cdeclLoader
+'-------------------------------------
 Type DLL_FUNCTION_CELL
 	'関数ポインタを格納するための変数へのポインタ
 	ptr AS VoidPtr
@@ -337,7 +366,7 @@ Type DLL_FUNCTION_CELL
 EndType
 
 'TST_DecoderDllLoaderへ改名、Decodersフォルダ内にデコーダを格納するように変更。↓の関数はRGBALibに移動
-Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr) As HINSTANCE
+Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
 	Dim hDll AS HINSTANCE
 	Dim errMes AS BytePtr
 
@@ -367,10 +396,47 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 	DynamicDllLoader=0
 	if hDll<>0 Then FreeLibrary(hDll)
 	if errMes<>0 Then 
-		TST_ErrMes(errMes,STR_ERR_DLL_LOAD_TITLE,0)
+		MessageBox(hWnd,errMes,"DLLロードエラー",MB_ICONERROR)
 		free(errMes)
 	endif
 EndFunction
+
+'バイナリに実行可能属性追加
+Function SetAsm(asm As *Byte, codesize As Long) As VoidPtr
+	SetAsm=VirtualAlloc(NULL, codesize, MEM_COMMIT, PAGE_EXECUTE_READWRITE) '追加
+	memcpy(SetAsm,asm,codesize)
+End Function
+
+'↑開放
+Sub FreeAsm(func As VoidPtr)
+	VirtualFree(func, 0, MEM_DECOMMIT or MEM_RELEASE) '追加
+End Sub
+
+/*
+ * cdeclの関数呼び出しができる関数
+ * 引数 ：FuncAdr	-> CDECL関数のアドレス
+ *		：params	-> 引数（DWord）のリスト
+ * 		：nParam	-> 引数の個数
+ * 戻り値はその関数の戻り値
+ * 機械語のソースは別ファイル参照
+*/
+TypeDef Type_cdeclLoader = *Function(FuncAdr AS VoidPtr , params AS *DWord,nParam AS Byte) As DWord
+Function Load_cdeclLoader() AS Type_cdeclLoader
+	Dim _cdeclLoader_bin[ELM(&H8F)]=[
+	&H55,&H89,&HE5,&H83,&HEC,&H20,&H8A,&H45,&H10,&H8B,&H4D,&H0C,&H8B,&H55,&H08,&H88,&H45,
+	&HFB,&H89,&H4D,&HF4,&H89,&H55,&HF0,&H0F,&HB6,&H4D,&HFB,&HC1,&HE1,&H02,&H89,&H4D,&HEC,
+	&H83,&H7D,&HF4,&H00,&H0F,&H84,&H39,&H00,&H00,&H00,&H0F,&HB6,&H45,&HFB,&H89,&H45,&HE8,
+	&H83,&H7D,&HE8,&H00,&H0F,&H84,&H23,&H00,&H00,&H00,&H8B,&H45,&HE8,&H83,&HE8,&H01,&H8B,
+	&H4D,&HF4,&H8B,&H04,&H81,&H89,&H45,&HE4,&HFF,&H75,&HE4,&H89,&H45,&HFC,&H8B,&H45,&HE8,
+	&H83,&HC0,&HFF,&H89,&H45,&HE8,&HE9,&HD3,&HFF,&HFF,&HFF,&HE9,&H00,&H00,&H00,&H00,&H90,
+	&HFF,&H55,&HF0,&H03,&H65,&HEC,&H89,&H45,&HE0,&H89,&H45,&HFC,&H8B,&H45,&HE0,&H83,&HC4,
+	&H20,&H5D,&HC2,&H0C,&H00] As Byte
+
+	'↑を実行可能領域へ転送
+	Load_cdeclLoader=VirtualAlloc(NULL, &H8F, MEM_COMMIT, PAGE_EXECUTE_READWRITE)	
+	if Load_cdeclLoader=0 Then ExitFunction
+	memcpy(Load_cdeclLoader,_cdeclLoader_bin,&H8F)
+End Function
 
 '------------------------------
 '		Console library
@@ -435,33 +501,31 @@ Sub PauseConsole()
 	ReadFile(GetStdHandle(STD_INPUT_HANDLE),VarPtr(buf),1,VarPtr(buf),ByVal NULL)
 EndSub
 
-Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,ShowHeader AS BOOL) AS DWORD
+Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS DWORD
 	Dim Tmp[&H20] As Byte,i As Long,Adr As DWORD
 	
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED)
-	if VAdr=0 Or ShowHeader=TRUE then Print " ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  0123456789ABCDEF "
+	if VAdr=0 Or noHeader=FALSE then Print " ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  0123456789ABCDEF "
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
 	Do
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE  OR 4 OR 3 )
-		wsprintf(Tmp,"%08X ",Adr+VAdr)
-		Print MakeStr(Tmp);
+		printf("%08X  ",Adr+VAdr)
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
-		Print " ";
+'		Print " ";
 		For i=0 To &H0F
 			if Adr+i=>Size then
-				wsprintf(Tmp,"-- ",0)
+				printf("-- ",0)
 			Else 
-				wsprintf(Tmp,"%02X ",Data[Adr+i])
+				printf("%02X ",Data[Adr+i])
 			endif
-			Print MakeStr(Tmp);
 		Next i
 		Print " ";
 		For i=0 To &H0F
 			if Adr+i=>Size then Goto *EXIT_LOOP
-			if Data[Adr+i]<&H20 then 
+			if Data[Adr+i]<&H20 or Data[Adr+i]=&HFF then 
 				Print ".";
 			Else
-				Print Chr$(Data[Adr+i]);
+				printf("%1c",Data[Adr+i])
 			Endif
 		Next i
 		i=0
@@ -676,8 +740,8 @@ End Class
 Class File
 Private
 	hFile As HANDLE
-	path AS FilePath
 Public
+	path AS FilePath
 	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS Long
 		Dim CreateMode AS Dword
 		If _Mode=GENERIC_READ then

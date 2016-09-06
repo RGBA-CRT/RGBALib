@@ -103,7 +103,9 @@ Declare Function waveOutGetErrorText Lib "winmm" Alias "waveOutGetErrorTextA" (m
 Declare Function waveOutPause Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutRestart Lib "winmm" (hwo As HWAVEOUT) As MMRESULT
 Declare Function waveOutGetDevCaps Lib "winmm" Alias "waveOutGetDevCapsA" ( uDeviceID As Long, lpCaps As BytePtr,uSize As Long) As Long
-Declare Function waveOutGetNumDevs Lib "winmm" () As Long
+Declare Function waveOutGetNumDevs Lib "winmm"() As Long
+Declare Function waveOutSetPitch Lib "winmm" (hwo As HWAVEOUT,dwPitch AS DWord) As Long
+Declare Function waveOutSetPlaybackRate Lib "winmm" (hwo As HWAVEOUT,dwRate AS DWord) As Long
 
 Declare Function midiOutOpen Lib "winmm.dll" (ByRef lphMidiOut As HANDLE,  uDeviceID As Long,  dwCallback As Long,  dwInstance As Long,  dwFlags As Long) As Long
 Declare Function midiOutClose Lib "winmm.dll" (hMidiOut As HANDLE) As Long
@@ -196,8 +198,12 @@ Type MIDIHDR
 End Type
 
 '---------------------------
-'  JoySticks
+'    Input & JoySticks
 '---------------------------
+Const HKM_SETHOTKEY	= &H00000401
+Const HKM_GETHOTKEY	= &H00000402
+Const HKM_SETRULES	= &H00000403
+
 Const JOYERR_NOERROR = 0
 Const JOYERR_PARMS = 165
 Const JOYERR_UNPLUGGED = 167
@@ -270,6 +276,8 @@ Declare Function GetConsoleTitle Lib "kernel32" Alias "GetConsoleTitleA" ( lpCon
 Declare Function ReadConsole Lib "kernel32" Alias "ReadConsoleA" ( hConsoleInput As HANDLE, lpBuffer As BytePtr, nNumberOfCharsToRead As Long, ByRef lpNumberOfCharsRead As DWord, lpReserved As Long) As Long
 Declare Function WriteConsole Lib "kernel32" Alias "WriteConsoleA" (hConOut As HANDLE, lpszText As BytePtr, lpcText As Long, ByRef NumWrite As DWord, NotUsed As Long) As Long
 Declare Function SetConsoleFont Lib "kernel32.dll" (hOut As BytePtr, dwFontSize As Long) As Long
+Declare Function GetConsoleCursorInfo Lib "kernel32" Alias "GetConsoleCursorInfo" ( hConsoleOutput AS HANDLE, lpConsoleCursorInfo As *CONSOLE_CURSOR_INFO) AS Long
+Declare Function SetConsoleCursorInfo Lib "kernel32" Alias "GetConsoleCursorInfo" ( hConsoleOutput AS HANDLE, lpConsoleCursorInfo As *CONSOLE_CURSOR_INFO) AS Long
 
 #define FOREGROUND_BLUE      &H0001 ' text color contains blue.
 #define FOREGROUND_GREEN     &H0002 ' text color contains green.
@@ -297,6 +305,11 @@ Type CONSOLE_SCREEN_BUFFER_INFO
 	srWindow AS SMALL_RECT
 	dwMaximumWindowSize AS COORD
 Endtype
+Type CONSOLE_CURSOR_INFO
+    dwSize   As DWord
+    bVisible As Long
+End Type
+
 
 
 '---------------------------
