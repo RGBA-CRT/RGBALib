@@ -887,7 +887,7 @@ Public
 	Sub allocStr(newSize AS DWord)
 		size=newSize+5
 		if ptr=0 Then 
-			ptr=malloc(size)
+			ptr=calloc(size)
 		Else
 			ptr=realloc(ptr,size)
 		Endif

@@ -438,7 +438,7 @@ End Type
 
 
 '---------------------------
-'  Other Win32API
+'  Windows System 
 '---------------------------
 'LoadLibrary
 Const DONT_RESOLVE_DLL_REFERENCES	= &H00000001
@@ -446,10 +446,36 @@ Const LOAD_LIBRARY_AS_DATAFILE	= &H00000002
 Const LOAD_WITH_ALTERED_SEARCH_PATH	= &H00000008
 Declare Function LoadLibraryEx Lib "Kernel32" Alias "LoadLibraryExA" (lpLibFileName AS BytePtr,hFile AS HANDLE,dwFlags AS DWord) As HINSTANCE
 
-'ホットキー
+'ATOM
+Declare Function GlobalAddAtom Lib "kernel32" Alias "GlobalAddAtomA" (lpString As BytePtr) As Integer
+Declare Function GlobalDeleteAtom Lib "kernel32" (nAtom As Integer) As Integer
+
+'MUTEX
+Declare Function CreateMutex Lib "KERNEL32.DLL" Alias "CreateMutexA" (lpMutexAttributes As DWORD,bInitialOwner As Long, lpName As BytePtr) As HANDLE
+Declare Function OpenMutex Lib "KERNEL32.DLL" Alias "OpenMutexA" (dwDesiredAccess As DWORD,bInheritHandle As Byte, lpName As BytePtr) As Long
+Declare Function ReleaseMutex Lib "KERNEL32.DLL"(hMutex As HANDLE) As Byte
+Declare Function SendMessageTimeout Lib "user32" Alias "SendMessageTimeoutA" (hwnd As HWND, msg As DWORD,wParam As WPARAM,lParam As LPARAM, fuFlags As DWORD,uTimeout As DWORD, lpdwResult As *DWord) As LRESULT 
+
+'グローバルホットキー
+Declare Function RegisterHotKey Lib "user32" (hwnd As HWND, id As Long, fsModifiers As Long, vk As Long) As Long
+Declare Function UnregisterHotKey Lib "user32" (hwnd As HWND, id As Long) As Long
+
+'スレッド特異的ホットキー
 Declare Function CreateAcceleratorTable Lib "user32" Alias "CreateAcceleratorTableA" (ByRef lpacl As ACCEL, i As Long) As HACCEL
 Declare Function TranslateAccelerator Lib "user32" Alias "TranslateAcceleratorA" (hWnd As HWND, hAccTable As HACCEL, ByRef lpMsg As MSG) As Long
 Declare Function DestroyAcceleratorTable Lib "user32" (hAccel As HACCEL) As Long
+
+'グローバルホットキー
+Const MOD_ALT = &H1
+Const MOD_CONTROL = &H2
+Const MOD_SHIFT = &H4
+
+'ローカル（スレッド特異的）拡張キー
+Const HOTKEYF_SHIFT	= &H00000001
+Const HOTKEYF_CONTROL	= &H00000002
+Const HOTKEYF_ALT	= &H00000004
+Const HOTKEYF_EXT	= &H00000008
+
 
 Const FVIRTKEY = TRUE
 Const FNOINVERT = &H02
@@ -482,7 +508,7 @@ Const EXCEPTION_MAXIMUM_PARAMETERS = 15
 '構造化例外情報
 Type _EXCEPTION_POINTERS
 	ExceptionRecord As *_EXCEPTION_RECORD
-	ContextRecord As VoidPtr'PCONTEXT
+	ContextRecord As VoidPtr'*PCONTEXT
 EndType
 Type _EXCEPTION_RECORD
 	ExceptionCode As DWORD
@@ -609,10 +635,6 @@ Declare Function InterlockedDecrement Lib "kernel32" (V As *Long) As Long
 'Other
 Declare Function SetLastError Lib "kernel32" (dwErrCode As DWORD) As DWord
 'Mutex
-Declare Function CreateMutex Lib "KERNEL32.DLL" Alias "CreateMutexA" (lpMutexAttributes As DWORD,bInitialOwner As Long, lpName As BytePtr) As HANDLE
-Declare Function OpenMutex Lib "KERNEL32.DLL" Alias "OpenMutexA" (dwDesiredAccess As DWORD,bInheritHandle As Byte, lpName As BytePtr) As Long
-Declare Function ReleaseMutex Lib "KERNEL32.DLL"(hMutex As HANDLE) As Byte
-Declare Function SendMessageTimeout Lib "user32" Alias "SendMessageTimeoutA" (hwnd As HWND, msg As DWORD,wParam As WPARAM,lParam As LPARAM, fuFlags As DWORD,uTimeout As DWORD, lpdwResult As *DWord) As LRESULT 
 'GDI
 Declare Function CreateDIBSection Lib "gdi32" ( hdc As Long,ByRef pBitmapInfo As BITMAPINFO,  un As Long,  lplpVoid As VoidPtr,  handle As Long,  dw As Long) As Long
 'Declare Function TransparentBlt Lib "msimg32.dll" (hDC As HDC,X As Long,Y As Long,Width As Long,Height As Long,hSrcDC As HDC,SrcX As Long,  SrcY As Long,SrcWidth As Long,SrcHeight As Long,TransparentColor As Long) As Long 
