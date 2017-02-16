@@ -52,6 +52,14 @@ Function GetDlgItemDouble(hWnd AS HWND) AS Double
 	free(buf)
 EndFunction
 
+'Auto Allocate
+Function GetWndTextAA(hWnd AS HWND) AS BytePtr
+	Dim buf as BytePtr,Length AS Long
+	Length=GetWindowTextLength(hWnd)
+	GetWndTextAA=calloc(Length+5)
+	GetWindowText(hWnd,GetWndTextAA,Length+1)
+EndFunction
+
 'エラーメッセージ表示
 Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword) As Long
 	SetForegroundWindow(hOwner)

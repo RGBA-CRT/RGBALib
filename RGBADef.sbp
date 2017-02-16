@@ -228,6 +228,7 @@ Const JOY_RETURNALL =(JOY_RETURNX + JOY_RETURNY + JOY_RETURNZ + JOY_RETURNR + JO
 Const JOYERR_NOCANDO = (JOYERR_BASE + 6)
 
 Declare Function joyGetPos Lib "winmm.dll" ( uJoyID As Long,ByRef pji As JOYINFO) As Long 
+Declare Function joyGetNumDevs Lib "winmm.dll" () As Long 
 Declare Function joyGetPosEx Lib "winmm.dll" Alias "joyGetPosEx" _
 						( uJoyID As Long,ByRef pji As JOYINFOEX) As Long
 
@@ -628,8 +629,15 @@ Const PAGE_EXECUTE_READWRITE As Long = &H40
 Const MEM_COMMIT As Long = &H1000
 Const MEM_RELEASE As Long = &H8000
 
+
+#ifndef _WIN64
 Declare Function InterlockedIncrement Lib "kernel32" (V As *Long) As Long
 Declare Function InterlockedDecrement Lib "kernel32" (V As *Long) As Long
+#endif
+
+Const CALLBACK_TASK	= &H00020000
+Const CALLBACK_THREAD	= &H00020000
+Const CALLBACK_EVENT	= &H00050000
 
 
 'Other
