@@ -4,6 +4,16 @@
 		HTTP系をクラスに
 */
 
+
+'--------------------------------------------------------
+'	要求APIが環境依存（Win95デフォルトから外れるもの）
+'--------------------------------------------------------
+
+' %fが使える
+Declare Function printfvc cdecl Lib "msvcrt.dll" Alias "printf" (str as BytePtr,format as BytePtr, ...) As Long
+Declare Function printfd cdecl Lib "msvcrt.dll" Alias "printf" (format as BytePtr, v1 AS Double,...) As Long
+
+
 '---------------
 '	Macros
 '---------------
@@ -50,6 +60,14 @@ Function GetDlgItemDouble(hWnd AS HWND) AS Double
 	GetWindowText(hWnd,buf,Length+1)
 	GetDlgItemDouble=Val(buf)' AS Long
 	free(buf)
+EndFunction
+
+'Auto Allocate
+Function GetWndTextAA(hWnd AS HWND) AS BytePtr
+	Dim buf as BytePtr,Length AS Long
+	Length=GetWindowTextLength(hWnd)
+	GetWndTextAA=calloc(Length+5)
+	GetWindowText(hWnd,GetWndTextAA,Length+1)
 EndFunction
 
 'エラーメッセージ表示
@@ -143,6 +161,17 @@ EndFunction
 '---------------
 '	Strings
 '--------------
+
+
+Function UTF16ToSJIS(utf16 AS BytePtr) AS BytePtr
+	Dim l AS DWord
+   ' UnicodeからShift-JISに変換
+   l=WideCharToMultiByte(CP_ACP, 0, utf16, -1, 0, 0, 0, 0)
+   UTF16ToSJIS=calloc(l)
+   WideCharToMultiByte(CP_ACP, 0, utf16, -1, UTF16ToSJIS, l, 0, 0)
+End Function
+
+
 
 'BM法文字列サーチ（指定文字列内に特定の文字列があるか？＝True or false）(バグあり)
 Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As DWORD) As Byte
@@ -461,6 +490,24 @@ Sub ConsoleReturnLine()
 	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
 EndSub
 
+Sub ConsoleLocateRelative(x As Long,y AS Long)
+	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
+	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) AS DWORD)
+	CmdPos.dwCursorPosition.X += x
+	CmdPos.dwCursorPosition.Y += y
+	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
+EndSub
+
+Sub ConsoleClearCurrentLine()
+	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
+	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) AS DWORD)
+	CmdPos.dwCursorPosition.X = 0
+	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
+	print String$(CmdPos.dwSize.X," ")
+	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
+
+EndSub
+
 Sub ConsoleReturnChar(count AS Long)
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
 	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos))
@@ -483,15 +530,19 @@ EndSub
 
 Const PRINTF_BUFFER = 1025
 Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long,Ptr[13] AS DWord
+	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
 	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	PrintPtr(Buf,ret)
 EndSub
 
 Sub PrintPtr(Text As BytePtr)(Length AS Long)
 	Dim a AS Long
-	if Length=0 then Length=lstrlen(Text)
-	WriteFile(_System_hConsoleOut,Text,Length,VarPtr(Length),ByVal NULL)
+	if Length=0 then 
+		a=lstrlen(Text)
+	Else
+		a=Length
+	End If
+	WriteFile(_System_hConsoleOut,Text,a,VarPtr(a),ByVal NULL)
 	'WriteConsole(GetStdHandle(STD_OUTPUT_HANDLE),Text,Length,NULL
 Endsub
 
@@ -534,10 +585,198 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 		Print
 	Loop
 *EXIT_LOOP
-'	Print
+	Print
 '	Print Hex$(Adr*&H10+i)+"="+Hex$(Size)
 	Dump=Adr
 Endfunction
+
+
+
+
+'---------------
+'	Device 
+'---------------
+Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
+	Dim ct AS COMMTIMEOUTS
+	ct.ReadIntervalTimeout=TimeOut		'連続受信タイムアウト
+	ct.ReadTotalTimeoutConstant=TimeOut	'Constant+Multiplier*バイト数＝タイムアウト
+	ct.ReadTotalTimeoutMultiplier=20
+	ct.WriteTotalTimeoutConstant=TimeOut
+	ct.WriteTotalTimeoutMultiplier=20
+
+	SetCommTimeouts(hComPortPort,VarPtr(ct))
+EndFunction
+
+'---------------
+'	Math
+'---------------
+Function isNan(value AS double) AS Double
+	Dim dw[1] AS DWord
+	memcpy(dw,VarPtr(value),8)
+
+	if (((dw[1])>>(20) And &H7FFF)=2047) And (dw[0] or (dw[1] And &H0007FFFF))>0 Then
+		isNan=TRUE
+	End If
+End Function
+
+Function Nan() AS Double
+	Dim DWORD_H=&H7FF55577 AS DWord
+'	Dim DWORD_L=&HFF005599 AS DWord
+	memcpy(VarPtr(Nan)+4,VarPtr(DWORD_H),4)
+'	memcpy(VarPtr(Nan)  ,VarPtr(DWORD_L),4)
+End Function
+
+/* bibun 関数の微分係数を出す
+ * 	_func  : 微分したい関数へのポインタ
+ *	inValue: 関数へ渡す値
+ *	return = 微分係数
+ */
+Typedef FN_PROTO = *Function(x AS Double) AS Double
+Function bibun(_func AS FN_PROTO,inValue AS Double) AS Double
+	bibun = (_func(inValue + EPS) - _func(inValue)) / EPS
+End Function
+
+Function newton(x1 AS double,func AS FN_PROTO) AS double
+	Dim x AS double,xp AS double,fdash AS double,  c AS Long
+	x=x1
+	Do
+		xp=x
+
+		fdash=bibun(func,xp)
+		if fdash=0 Then fdash=EPS
+		x = xp - (func(xp) / fdash)
+		if Abs(x-xp) < EPS or c>ITER_LIMITTER Then ExitDo
+		c++
+	Loop
+
+	newton=x
+End Function
+
+Function GetKaiLU(ByRef A AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
+	Dim L AS *ABMatrix,U AS *ABMatrix
+	Dim y AS *ABMatrix,tmp AS *ABMatrix
+	Dim sigma AS DOUBLE,i as Long,k AS Long
+	x=new ABMatrix(b.y,b.x)
+	y=new ABMatrix(b.y,b.x)
+
+	A.GetLU(L,U)	
+	For i = 0 To y->y-1
+		sigma=0
+		For k=0 To i-1
+			sigma+=L->Get(i,k)*y->Get(k,0)
+		Next k
+		y->Set((b.Get(i,0)-sigma)/L->Get(i,i),i,0)
+	Next i 
+
+	For i = y->y-1 To 0 Step -1
+		sigma=0
+		For k=i To y->y-1
+			sigma+=U->Get(i,k)*x->Get(k,0)
+		Next k
+		x->Set((y->Get(i,0)-sigma)/U->Get(i,i),i,0)
+	Next i
+
+	GetKaiLU=x
+	delete y	:	delete L	:	delete U
+End Function
+
+
+Function MulMatrix(ByRef a AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
+	Dim ix AS Long,iy AS Long,is AS Long
+	Dim sum AS double
+	Dim ret AS *ABMatrix
+	ret=new ABMatrix(b.y,b.x)
+
+	For iy=0 To ret->y-1
+		For ix=0 To ret->x-1
+			sum=0
+			For is=0 To a.x-1
+				sum+=a.Get(iy,is) * b.Get(is,ix)	
+			Next is
+			ret->Set( sum ,iy,ix)
+		Next ix
+	Next iy
+	MulMatrix=ret
+End Function
+
+Function InputMatrix()(Message AS BytePtr) AS *ABMatrix
+	Dim in AS String
+	Dim x AS Long,ox AS Long,i As Long, y AS Long,dr[20] AS *double
+	if Message<>0 Then printf(ex"%s\n",Message)
+	Do
+		Input ">",in
+		dr[y]=Str2DoubleAry(in,x)
+		if dr[y]=NULL or x=0 Then Exitdo
+		if i>0 And ox<>x Then Print "行列サイズが不正です。":ExitFunction
+		ox=x
+		i++:y++
+		if y>20 then Print "行数制限です。":Exitdo
+	Loop
+	'サイズが0
+	if y<1 or ox<1 Then 
+		For i=0 To y-1
+			free(dr[i])
+		Next i
+		ExitFunction
+	Endif
+
+	InputMatrix=new ABMatrix(y,ox)
+	For i=0 To y-1
+		For x=0 To ox-1
+			InputMatrix->Set(dr[i][x],i,x)
+		Next x
+		free(dr[i])
+	Next i
+
+	Print
+End Function
+
+Function Str2DoubleAry(str AS BytePtr,ByRef count AS Long) AS *double	debug
+	Dim i aS Long,C AS Long
+	
+	count=0
+	if str=NULL then ExitFunction
+	Str2DoubleAry=calloc(sizeof(double)*lstrlen(str)+10)
+
+	Do
+		if str[i]=0 Then ExitDo
+		if str[i]<>Asc(" ") Then 
+			Str2DoubleAry[C]=Val(str+i)
+			C++
+			'Skip to next space
+			Do
+				i++
+				if str[i]=Asc(" ") Then Exitdo
+				if str[i]=0 Then exitdo
+			Loop
+			continue
+		End If
+		i++
+	Loop
+
+	if C>0 Then
+		realloc(Str2DoubleAry,sizeof(double)*(C))
+		count=C
+	Else
+		free(Str2DoubleAry)
+		Str2DoubleAry=0
+	Endif
+End Function
+
+Function CountChar(str AS BytePtr,chara AS Byte) AS Long
+	if str=NULL then ExitFunction
+	Dim i aS Long,C AS Long
+	Do
+		if str[i]=chara Then C++
+		if str[i]=0 Then ExitDo
+		i++
+	Loop
+	CountChar=C
+End Function
+
+
+
+
 
 
 '------------------------------
@@ -749,7 +988,7 @@ Public
 		Elseif  _Mode=GENERIC_WRITE then
 			CreateMode=CREATE_ALWAYS
 	    Else
-	    	CreateMode=OPEN_ALWAYS
+	    	CreateMode=OPEN_EXISTING
 		EndIf
 
 		hFile=CreateFile(inPath, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
@@ -958,6 +1197,230 @@ Public
 		if TempString<>0 Then free(TempString):TempString=0
 	EndSub
 End Class
+
+Class ABMatrix
+Public
+	x AS Long	'列数
+	y AS Long 	'行数
+Private
+	pMatrix AS *Double
+Public
+	Sub ABMatrix(iny AS Long,inx AS Long)(initMatrix As *Double)
+		x=inx
+		y=iny
+		pMatrix=malloc(sizeof(double)*inx*iny)
+		if initMatrix<>NULL Then
+			memcpy(pMatrix,initMatrix,sizeof(double)*inx*iny)
+		Else
+			FillMemory(pMatrix,sizeof(double)*inx*iny,0)
+		End If
+	End Sub
+
+	Sub ~ABMatrix()
+		free(pMatrix) 	:	pMatrix=NULL
+	End Sub
+
+	Sub PrintMatrix()(caption AS BytePtr)
+		if caption=NULL Then caption=""
+		printf(ex"%sMatrix[%08X,%d,%d] : \n",caption,pMatrix,x,y)
+		Dim ix AS Long,iy AS Long
+		For iy=0 To y-1
+			For ix= 0 To x-1
+				printfd(ex"%5.2f\t",pMatrix[ix+iy*x])
+			Next ix
+			Print
+		Next iy
+		Print ex"-------------------------------\n"
+	End Sub
+
+	Sub Overwrite(newMatrix As *Double) 	'double配列から入力
+		if newMatrix<>NULL Then
+			memcpy(pMatrix,newMatrix,sizeof(double)*x*y)
+		End If
+	End Sub
+
+	Function Get(pos_y AS Long,pos_x AS Long) AS double
+		Get=pMatrix[pos_x+pos_y*x]
+	End Function
+
+	Sub Set(value AS double,pos_y AS Long,pos_x AS Long)
+		pMatrix[pos_x+pos_y*x]=value
+	End Sub
+
+	Sub MakeUnitMatrix()	'現在の行列を破棄し単位行列にする
+		Dim ix AS Long,iy AS Long
+		For iy=0 To y-1
+			For ix= 0 To x-1
+				if ix=iy Then
+					pMatrix[ix+iy*x]=1
+				Else
+					pMatrix[ix+iy*x]=0
+				End If
+			Next ix
+		Next iy
+	End Sub
+
+	'小行列を取得, excludeした行, 列を除去した行列を返す
+	Function GetSubMatrix(excludeX AS Long,excludeY AS Long) AS *ABMatrix
+		Dim ret AS *ABMatrix 
+		ret=new ABMatrix(x-1,y-1)
+
+		Dim ix AS Long,iy AS Long,nx AS Long,ny AS Long
+		For iy=0 To y-1
+			if iy=excludeY Then Continue
+			For ix= 0 To x-1
+				if ix=excludeX Then Continue
+				ret->Set(pMatrix[ix+iy*x],ny,nx)
+				nx++
+			Next ix
+			nx=0
+			ny++
+		Next iy
+		GetSubMatrix=ret
+	End Function
+
+	'行列式detを求める
+	Function determinant() AS double
+		if x=<1 and y=<1 Then	determinant=pMatrix[0]:ExitFunction
+		if x<>y Then ExitFunction
+		Dim i AS Long,ret AS double
+		Dim work AS *ABMatrix
+		For i=0 To x-1
+			work=GetSubMatrix(i,0)
+			if i Mod 2 = 0 Then
+				ret += pMatrix[i] * work->determinant()
+			Else
+				ret -= pMatrix[i] * work->determinant()
+			End If
+			delete work
+		Next i
+		determinant=ret
+	End Function
+
+	'行列式による逆行列取得（PDF参照）
+	Function GetInverseMatrix() AS *ABMatrix
+		Dim ix AS Long, iy AS Long, sign AS double
+		Dim retMx As *ABMatrix, subMx AS *ABMatrix, detM AS double
+		if x=<1 and y=<1 Then	GetInverseMatrix=NULL:ExitFunction
+
+		retMx = new ABMatrix(x,y)	'戻り値の行列
+		detM=determinant()
+		
+		For iy=0 To y-1
+			For ix= 0 To x-1
+				subMx=GetSubMatrix(iy,ix)	'小行列取得
+				if ix Mod 2=iy Mod 2 Then	'＋－で縞々に　偶数&偶数 or 奇数＆奇数
+					sign=1
+				Else
+					sign=-1
+				End if
+				retMx->Set(sign*subMx->determinant()/detM,iy,ix)	'符号 * det(小行列) / detM
+				delete subMx
+			Next ix
+		Next iy
+		GetInverseMatrix=retMx
+	End Function
+
+	'LU分解したものを取得(PDF準拠)
+	Sub GetLU(ByRef LMatrix AS *ABMatrix,ByRef UMatrix AS *ABMatrix)
+		Dim retL AS *ABMatrix,retU AS *ABMatrix
+		Dim ix AS Long,iy AS Long,w AS Long, sigma AS double
+
+		retL=new ABMatrix(x,y)
+		retU=new ABMatrix(x,y)
+
+		For iy=0 To y-1
+			For ix= 0 To x-1
+				'L
+				if ix=<iy Then
+					if ix=0 Then 
+						retL->Set(pMatrix[iy*x],iy,0)
+					Elseif ix=iy Then
+						'シグマの計算
+						sigma=0
+						For w=0 To ix-1
+							sigma+=retL->Get(iy,w) * retU->Get(w,ix)
+						Next w								
+						retL->Set(pMatrix[ix+iy*x]-sigma,iy,ix)
+					Else
+						'斜め(ix=iy以外)、先頭列(ix=0)以外の時つまりL(i,k)
+						sigma=0
+						For w=0 To ix-1
+							sigma+=retL->Get(iy,w) * retU->Get(w,ix)
+						Next w
+						retL->Set(pMatrix[ix+iy*x] - sigma,iy,ix)
+					End If
+				End If
+
+				'U
+				if ix=>iy Then
+					if ix=iy Then 
+						retU->Set(1,ix,iy)	'u(i,i)=1
+					Elseif iy=0 Then
+						retU->Set(pMatrix[ix]/pMatrix[0],0,ix)
+					Else
+						'斜め以外で1行目以外の時
+						sigma=0
+						For w=0 To ix-1
+							sigma+=retL->Get(iy,w) * retU->Get(w,ix)
+						Next w
+						retU->Set((pMatrix[ix+iy*x]-sigma)/retL->Get(iy,iy),iy,ix)
+					End If
+				End If				
+			Next ix
+		Next iy
+
+		if VarPtr(LMatrix)<>NULL Then
+			LMatrix=retL
+		Else
+			delete LMatrix
+		End If
+		if VarPtr(UMatrix)<>NULL Then
+			UMatrix=retU
+		Else
+			delete UMatrix
+		End If
+	End Sub
+
+	'ガウス消去法による逆行列取得
+	Function GaussInverse() AS *ABMatrix
+		Dim ret AS *ABMatrix,tmp AS *ABMatrix
+		Dim ix AS Long,iy AS Long,sx AS Long
+		Dim coff AS double
+
+		ret=new ABMatrix(y,x)	'右側の行列　最初は単位行列
+		ret->MakeUnitMatrix()
+		tmp=new ABMatrix(y,x)	'左側のコピー
+		tmp->Overwrite(pMatrix)
+
+		For ix=0 To x-1
+			'ターゲットを割り算で１にする
+			coff=tmp->Get(ix,ix)
+			if coff<>1 then
+				For sx = 0 To x-1
+					tmp->Set(tmp->Get(ix,sx)/coff,ix,sx)
+					ret->Set(ret->Get(ix,sx)/coff,ix,sx)
+				Next sx
+			End If
+
+			'ターゲット行以外のターゲット列を0にする
+			For iy=0 To y-1
+				if iy<>ix Then
+					coff=tmp->Get(iy,ix)
+					For sx = 0 To x-1
+						'更新セル = 更新セル     - 消したいとこ　 × 今の列の1にしたいとこ（ix=iy） 
+						tmp->Set(tmp->Get(iy,sx) - tmp->Get(ix,sx) * coff ,iy,sx)
+						ret->Set(ret->Get(iy,sx) - ret->Get(ix,sx) * coff ,iy,sx)
+					Next sx
+				End If
+			Next iy
+		Next ix
+
+		GaussInverse=ret
+		delete tmp
+	End Function
+End Class
+
 
 '------------------------------------------------------
 '			たぶんもう使わない関数

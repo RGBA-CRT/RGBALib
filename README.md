@@ -1,11 +1,11 @@
 # RGBALib
 （自分用）ActiveBasic ver4用API定義＆ライブラリ集  
-いろんなサイトからのコピペで成り立ってます。
+いろんなサイトからのコピペでも含まれています。
 
 ## 使用方法
 ActiveBasicのIncludeディレクトリに配置してください。
 
-##ActiveBasicCompiler for Win10
+## ActiveBasicCompiler for Win10
 Win10にてGUIアプリがデバッグできない（例外コード:0xe06d7363）のを修正するパッチを作りました。
 GetOpenFileName/GetSaveFileNameのバグも治ります。
 詳しくはABCompilerForWin10/readme.mdを参照。

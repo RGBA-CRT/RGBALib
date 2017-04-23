@@ -1,0 +1,414 @@
+'--------------------------
+' 		easyHID
+' Programmed by RGBA_CRT
+'--------------------------
+#include <RGBALib.sbp>
+
+'---------------- WinAPI -----------------
+Declare Function HidD_GetHidGuid Lib "hid.dll" (ByRef HidGuid As GUID) As Long
+Declare Function HidD_GetPreparsedData Lib "hid.dll" (HidDeviceObject As HANDLE, ByRef PreparsedData As VoidPtr) As Long
+Declare Function HidD_FreePreparsedData Lib "hid.dll" (ByRef PreparsedData As VoidPtr) As Long
+Declare Function HidD_GetAttributes Lib "hid.dll" (HidDeviceObject As HANDLE, ByRef Attributes As HIDD_ATTRIBUTES) As Long
+Declare Function HidD_GetProductString Lib "hid.dll" (HidDeviceObject As Long,buf AS DWord, length AS DWord) As Long
+
+Declare Function HidD_SetOutputReport Lib "hid.dll" (HidDeviceObject As HANDLE, buf AS BytePtr,length AS DWord) As Long
+Declare Function HidD_GetInputReport Lib "hid.dll" (HidDeviceObject As HANDLE, buf AS BytePtr,length AS DWord) As Long
+
+Declare Function HidP_GetCaps Lib "hid.dll" (PreparsedData As VoidPtr, ByRef Capabilities As HIDP_CAPS) As Long
+Declare Function HidP_GetValueCaps  Lib "hid.dll" (ReportType AS HIDP_REPORT_TYPE,ByRef ValueCaps As HIDP_VALUE_CAPS,ByRef ValueCapsLength AS Word, PreparsedData As VoidPtr ) As Long
+
+
+Declare Function SetupDiCreateDeviceInfoList Lib "setupapi.dll" (ByRef ClassGuid As GUID, hwndParent As Long) As Long
+Declare Function SetupDiDestroyDeviceInfoList Lib "setupapi.dll" (DeviceInfoSet As Long) As Long
+Declare Function SetupDiEnumDeviceInterfaces Lib "setupapi.dll" (DeviceInfoSet As Long, DeviceInfoData As Long, ByRef InterfaceClassGuid As GUID, MemberIndex As Long, ByRef DeviceInterfaceData As SP_DEVICE_INTERFACE_DATA) As Long
+Declare Function SetupDiGetClassDevs Lib "setupapi.dll" Alias "SetupDiGetClassDevsA" (ByRef ClassGuid As GUID, Enumerator As String, hwndParent As Long, Flags As Long) As Long
+Declare Function SetupDiGetDeviceInterfaceDetail Lib "setupapi.dll" Alias "SetupDiGetDeviceInterfaceDetailA" (DeviceInfoSet As HANDLE, ByRef DeviceInterfaceData As SP_DEVICE_INTERFACE_DATA, DeviceInterfaceDetailData As *SP_DEVICE_INTERFACE_DETAIL_DATA, DeviceInterfaceDetailDataSize As DWord, ByRef RequiredSize As Long, DeviceInfoData As Long) As Long
+Declare Function CreateEvent Lib "kernel32" Alias "CreateEventA" (lpEventAttributes As Long, bManualReset As Long, bInitialState As Long, lpName As String) As Long
+Declare Function GetOverlappedResult Lib "kernel32.dll" (hFile As Word, ByRef lpOverlapped As OVERLAPPED, ByRef lpNumberOfBytesTransferred As Long, bWait As BOOL) As Word
+
+Enum HIDP_REPORT_TYPE
+	HidP_Input =0
+	HidP_Output
+	HidP_Feature
+End Enum
+
+Type HIDD_ATTRIBUTES
+    Size As Long
+    VendorID As Word
+    ProductID As Word
+    VersionNumber As Word
+End Type
+
+Type HIDP_CAPS
+    Usage As Word
+    UsagePage As Word
+    InputReportByteLength As Word
+    OutputReportByteLength As Word
+    FeatureReportByteLength As Word
+    Reserved(16) As Word
+    NumberLinkCollectionNodes As Word
+    NumberInputButtonCaps As Word
+    NumberInputvalueCaps As Word
+    NumberInputDataIndices As Word
+    NumberOutputButtonCaps As Word
+    NumberOutputvalueCaps As Word
+    NumberOutputDataIndices As Word
+    NumberFeatureButtonCaps As Word
+    NumberFeaturevalueCaps As Word
+    NumberFeatureDataIndices As Word
+End Type
+
+
+Type HIDP_VALUE_CAPS
+    UsagePage As Word
+    ReportID As Byte
+    IsAlias As Long
+    BitField As Word
+    LinkCollection As Word
+    LinkUsage As Word
+    LinkUsagePage As Word
+    IsRange As Long
+    IsStringRange As Long
+    IsDesignatorRange As Long
+    IsAbsolute As Long
+    HasNull As Long
+    Reserved As Byte
+    BitSize As Word
+    ReportCount As Word
+    Reserved2[4] As Word
+    LogicalMin As Long
+    LogicalMax As Long
+    PhysicalMin As Long
+    PhysicalMax As Long
+    UsageMin As Word
+    UsageMax As Word
+    StringMin As Word
+    StringMax As Word
+    DesignatorMin As Word
+    DesignatorMax As Word
+    DataIndexMin As Word
+    DataIndexMax As Word
+'dummy[15] AS Word
+End Type
+
+Type SP_DEVICE_INTERFACE_DATA
+    cbSize As Long
+    InterfaceClassGuid As GUID
+    Flags As Long
+    Reserved As Long
+End Type
+
+'ANYSIZE_ARRAYは、配列の中に文字列へのポインタがあるわけでなく、構造体自体のサイズが可変で後ろに文字列がくっつく感じ
+Type SP_DEVICE_INTERFACE_DETAIL_DATA
+    cbSize As Long
+    devicepath[0] As Byte
+End Type
+
+Type SP_DEVINFO_DATA
+    cbSize As Long
+    ClassGuid As GUID
+    DevInst As Long
+    Reserved As Long
+End Type
+
+Const DIGCF_PRESENT = &H02
+Const DIGCF_DEVICEINTERFACE = &H10
+
+Const HIDP_STATUS_SUCCESS = &H00110000
+Const HIDP_STATUS_INVALID_PREPARSED_DATA  = &H0C110001
+
+
+
+
+'---------------- EasyHID value & struct -----------------
+Const EASY_HID_TIMEOUT_VALUE = 1000
+
+Type EASY_HID_SIMPLE_INFO
+	vendorID AS Word
+	productID AS Word
+	reportID AS Word
+	inputReportSize As DWord
+	outputReportSize As DWord
+	futureReportSize As DWord
+	devicePath AS BytePtr
+	productName AS BytePtr
+End Type
+
+Type EASY_HID
+	hdev AS HANDLE
+	devicePath AS BytePtr
+	productName AS BytePtr
+	attr AS HIDD_ATTRIBUTES
+	caps AS HIDP_CAPS
+	caps_value AS HIDP_VALUE_CAPS
+End Type
+Typedef EASY_HID_HANDLE = *EASY_HID
+
+Const EH_GPSA_LENGTH = 254	'ProductStringの最大サイズ
+
+Type EASY_HID_DEVICE_LIST
+	info As EASY_HID_SIMPLE_INFO
+	isPathOnly AS BOOL
+	pNext AS *EASY_HID_DEVICE_LIST
+	pPrev As VoidPtr	'*EASY_HID_DEVICE_LIST 'デバッガがバグらないように
+End Type
+
+
+
+
+
+'---------------- OpenDevice -----------------
+
+Function Export EasyHID_open(venderID AS Word,productID AS Word) AS EASY_HID_HANDLE
+	Dim path AS BytePtr
+
+	'デバイスパス(\\?\hid...)を取得
+	path = EasyHID_findDevice(venderID, productID, -1,FALSE)
+	if path=NULL Then
+		ExitFunction
+	End If
+
+	EasyHID_open=EasyHID_openFromHandle(path)
+End Function
+
+
+'reportMode=TRUE の時、numをレポートIDとして検索
+'reportMode=FALSE の時 numを順番として検索
+Function Export EasyHID_openEx(venderID AS Word,productID AS Word, num AS Long,reportMode AS BOOL) AS EASY_HID_HANDLE
+	Dim path AS BytePtr
+
+	'デバイスパス(\\?\hid...)を取得
+	path = EasyHID_findDevice(venderID, productID, num,reportMode)
+	if path=NULL Then
+		ExitFunction
+	End If
+
+	EasyHID_openEx=EasyHID_openFromHandle(path)
+End Function
+
+
+'デバイスハンドル(CreateFile)から開く
+Function Export EasyHID_openFromHandle(path AS BytePtr) AS EASY_HID_HANDLE
+	Dim ret As EASY_HID_HANDLE
+	ret = calloc(sizeof(EASY_HID))
+
+	ret->devicePath = calloc(lstrlen(path)+5)
+	lstrcpy(ret->devicePath,path)
+
+	'デバイスパスをもとにファイルハンドルを作成
+	ret->hdev = OpenFile(ret->devicePath, GENERIC_READ or GENERIC_WRITE)
+	if ret->hdev = INVALID_HANDLE_VALUE Then 
+		free(ret->devicePath)
+		free(ret)
+		ExitFunction
+	End If
+
+	'ベンダID、プロダクトIDを取得
+	HidD_GetAttributes(ret->hdev,ret->attr)
+
+	'capsとcaps_valueの素を取得
+	Dim pdata AS VoidPtr
+	HidD_GetPreparsedData(ret->hdev,pdata)
+
+	'caps
+	HidP_GetCaps(pdata,ret->caps)
+
+	'caps_value
+	Dim hid_caps_length AS Word
+	hid_caps_length=1
+	HidP_GetValueCaps(HidP_Input,ret->caps_value,hid_caps_length,pdata)
+
+	HidD_FreePreparsedData(pdata)
+
+	'productName
+	ret->productName = EasyHID_getProductStringA(ret->hdev)
+
+	'タイムアウト設定
+	SetIOTimeOut(ret->hdev,EASY_HID_TIMEOUT_VALUE)
+
+	EasyHID_openFromHandle=ret
+End Function
+
+Sub Export EasyHID_close(handle AS EASY_HID_HANDLE)
+	free(handle->devicePath)
+	free(handle->productName)
+	CloseHandle(handle->hdev)
+	free(handle)
+End Sub
+
+'たまったバッファを破棄
+Sub Export EasyHID_flushBuffer(handle AS EASY_HID_HANDLE)
+	FlushFileBuffers(handle->hdev)
+End Sub
+
+
+'---------------- I/O --------------------
+
+Function Export EasyHID_read(handle AS EASY_HID_HANDLE,repBuf AS BytePtr/*,len AS DWord,readLen AS *DWord*/) AS BOOL
+	Dim dwAB As DWord
+	EasyHID_read = ReadFile(handle->hdev, repBuf, handle->caps.InputReportByteLength, VarPtr(dwAB), ByVal NULL)
+'	EasyHID_read = HidD_GetInputReport(handle->hdev,repBuf,handle->caps.InputReportByteLength)
+End Function
+
+
+Function Export EasyHID_write(handle AS EASY_HID_HANDLE,repBuf AS BytePtr) AS BOOL
+'	Dim dwAB As DWord
+'	EasyHID_write = WriteFile(handle->hdev, repBuf, handle->caps.OutputReportByteLength, VarPtr(dwAB), ByVal NULL)
+	EasyHID_write = HidD_SetOutputReport(handle->hdev,repBuf,handle->caps.OutputReportByteLength)
+End Function
+
+
+
+
+'---------------- Enum & Infomation --------------------
+
+Function Export EasyHID_EnumDevices() AS *EASY_HID_DEVICE_LIST
+	Dim head AS *EASY_HID_DEVICE_LIST,cur AS *EASY_HID_DEVICE_LIST
+	head=calloc(sizeof(EASY_HID_DEVICE_LIST))
+	cur = head
+
+	Dim hidGuid AS GUID
+	HidD_GetHidGuid(hidGuid)
+
+	Dim devinf AS HANDLE
+	devinf = SetupDiGetClassDevs(hidGuid, NULL, 0, DIGCF_PRESENT or DIGCF_DEVICEINTERFACE)
+
+	Dim spid AS SP_DEVICE_INTERFACE_DATA, i AS Long, size AS Long
+	Dim dev_det As *SP_DEVICE_INTERFACE_DETAIL_DATA
+	spid.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA)
+
+	Do
+		if SetupDiEnumDeviceInterfaces(devinf, NULL, hidGuid, i, spid) <> TRUE Then	Exitdo
+
+		'初回以外次のノードへ
+		if i>0 Then 
+			cur->pNext = calloc(sizeof(EASY_HID_DEVICE_LIST))
+			cur->pNext->pPrev = cur	'ここでActiveBASICのデバッガが再帰してスタックオーバーフロー
+			cur = cur->pNext
+		Endif
+
+		'デバイスディテールの取得に必要なサイズを取得、確保
+		SetupDiGetDeviceInterfaceDetail( devinf, spid, NULL, 0, size, 0 )
+		dev_det = calloc(size+5)
+		dev_det->cbSize = 5	'sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA)
+
+		if SetupDiGetDeviceInterfaceDetail( devinf, spid, dev_det, size, size, 0 )=FALSE  then ExitDo
+		cur->info.devicePath = calloc(size+1)
+		lstrcpy(cur->info.devicePath, dev_det->devicepath)
+
+		Dim dev As File,hDev AS HANDLE
+		if dev.openFile(dev_det->devicepath,0 )=FALSE Then
+			'device open error, ignore
+			cur->isPathOnly = TRUE
+		Else
+			Dim attr AS HIDD_ATTRIBUTES,pdata AS VoidPtr,hid_caps As HIDP_VALUE_CAPS ,hid_caps_length AS Word
+			hDev = dev.getHandle()
+			
+			'venderIDとproductIDを取得
+			HidD_GetAttributes(hDev,attr)
+			if HidD_GetPreparsedData(hDev,pdata) = FALSE Then pdata=NULL
+
+			'reportIDを取得
+			hid_caps_length=1	'たぶん構造体1つ分という指定になると思う（2とかにするとメモリ破壊）
+			HidP_GetValueCaps(HidP_Input,hid_caps,hid_caps_length,pdata)
+
+			'情報をセット
+			cur->info.reportID	= hid_caps.ReportID
+			cur->info.vendorID	= attr.VendorID
+			cur->info.productID	= attr.ProductID
+			cur->info.productName = EasyHID_getProductStringA(hDev)
+			
+			dev.close()
+			HidD_FreePreparsedData(pdata)
+			pdata=NULL
+
+'			FillMemory(VarPtr(hid_caps),sizeof(HIDP_VALUE_CAPS),0)
+		End If
+		free(dev_det)
+		dev_det=NULL
+		i++
+	Loop
+	
+	EasyHID_EnumDevices = head
+EndFunction
+
+Sub Export EasyHID_FreeDeviceList(hidList As *EASY_HID_DEVICE_LIST)
+	Dim c As *EASY_HID_DEVICE_LIST
+	Dim prev AS VoidPtr
+	c=hidList
+
+	'リスト最後尾まで行く
+	Do
+		if c->pNext = NULL Then ExitDo
+		c = c->pNext
+	Loop
+	'後ろから	
+	Do
+		prev=c->pPrev
+		free(c->info.devicePath)
+		free(c->info.productName)
+		free(c)
+		if prev = NULL Then ExitDo
+		c = prev
+	Loop
+End Sub
+
+'リストアップして、その中から検索し、デバイスパスを返す
+Function Export EasyHID_findDevice(venderID AS Word,productID AS Word, reportID AS Long,reportMode AS BOOL) As BytePtr
+	Dim l AS *EASY_HID_DEVICE_LIST, c AS *EASY_HID_DEVICE_LIST
+	Dim i AS Long,found_count AS Long
+	l=EasyHID_EnumDevices()
+	c=l
+	Do
+		if (c->info.vendorID=venderID) And (c->info.productID=productID) Then
+			if reportID < 0 Then
+				'reportIDを無視して最初に見つかったやつ
+				ExitDo
+			Else
+				if reportMode = TRUE Then
+					'レポートIDを条件
+					if reportID = c->info.reportID Then	ExitDo
+				Else
+					'順番				
+					if reportID = found_count Then ExitDo
+					found_count++
+				End If					
+			End If
+		End If
+		i++
+		c=c->pNext
+		if c=NULL Then 
+			EasyHID_findDevice=NULL
+			Goto *EHFD_EXIT
+		Endif
+	Loop
+
+	Dim len AS DWord
+	len=lstrlen(c->info.devicePath)
+	EasyHID_findDevice=calloc(len+2)
+	memcpy(EasyHID_findDevice,c->info.devicePath,len+1)
+
+*EHFD_EXIT:
+	EasyHID_FreeDeviceList(l)
+End Function
+
+
+'解放不要
+Sub Export EasyHID_getInfo(handle AS EASY_HID_HANDLE,ByRef info AS EASY_HID_SIMPLE_INFO)
+	With info
+		.productID = handle->attr.ProductID
+		.vendorID = handle->attr.VendorID
+		.reportID = handle->caps_value.ReportID
+		.inputReportSize = handle->caps.InputReportByteLength
+		.outputReportSize = handle->caps.OutputReportByteLength
+		.futureReportSize = handle->caps.OutputReportByteLength
+		.devicePath = handle->devicePath
+		.productName = handle->productName
+	End With
+End Sub
+
+Function EasyHID_getProductStringA(handle AS HANDLE) AS BytePtr
+	Dim tmp[EH_GPSA_LENGTH] AS Byte
+	HidD_GetProductString(handle,tmp,EH_GPSA_LENGTH)
+	EasyHID_getProductStringA = UTF16ToSJIS(tmp)
+End Function

@@ -1,24 +1,24 @@
-#ActiveBasic Version 4.24.00 —áŠO–³‹•Win10‘Î‰ƒpƒbƒ`
+ï»¿# ActiveBasic Version 4.24.00 ä¾‹å¤–ç„¡è¦–ï¼†Win10å¯¾å¿œãƒ‘ãƒƒãƒ
 
-#‚È‚É‚±‚ê
-Win10‚ÌÅVƒrƒ‹ƒh‚ÅAActiveBasic ver4iˆÈ‰ºAB4j‚ÌBasicCompiler‚ÅGUIƒAƒvƒŠ‚ğƒfƒoƒbƒO‚µ‚æ‚¤‚Æ‚·‚é‚Æ
-	—áŠOˆ— codeFe06d7363  
-‚Æ•\¦‚³‚êƒfƒoƒbƒO‚ª‚Å‚«‚È‚¢–â‘èiWin10‚ÌƒoƒOj‚ª‚ ‚èAMS‚ª‚È‚©‚È‚©C³‚µ‚È‚¢‚Ì‚ÅAB4‘¤‚¢‚¶‚Á‚Ä‚â‚ë‚¤‚Æ‚¢‚¤‚à‚Ì‚Å‚·B  
-‚¿‚È‚İ‚ÉWin7ˆÈ~‚©‚ç‚Ì–â‘è‚Å‚ ‚éAGetOpenFileName‚Å0x6BA,0xC0020043‚ª”­¶‚µ‚Ä“®‚©‚È‚¢–â‘è‚à‰ğŒˆ‚³‚ê‚Ü‚·B
+# ãªã«ã“ã‚Œ
+Win10ã®æœ€æ–°ãƒ“ãƒ«ãƒ‰ã§ã€ActiveBasic ver4ï¼ˆä»¥ä¸‹AB4ï¼‰ã®BasicCompilerã§GUIã‚¢ãƒ—ãƒªã‚’ãƒ‡ãƒãƒƒã‚°ã—ã‚ˆã†ã¨ã™ã‚‹ã¨
+	ä¾‹å¤–å‡¦ç† codeï¼še06d7363  
+ã¨è¡¨ç¤ºã•ã‚Œãƒ‡ãƒãƒƒã‚°ãŒã§ããªã„å•é¡Œï¼ˆWin10ã®ãƒã‚°ï¼‰ãŒã‚ã‚Šã€MSãŒãªã‹ãªã‹ä¿®æ­£ã—ãªã„ã®ã§AB4å´ã„ã˜ã£ã¦ã‚„ã‚ã†ã¨ã„ã†ã‚‚ã®ã§ã™ã€‚  
+ã¡ãªã¿ã«Win7ä»¥é™ã‹ã‚‰ã®å•é¡Œã§ã‚ã‚‹ã€GetOpenFileNameã§0x6BA,0xC0020043ãŒç™ºç”Ÿã—ã¦å‹•ã‹ãªã„å•é¡Œã‚‚è§£æ±ºã•ã‚Œã¾ã™ã€‚
 
-WinIPS‚È‚Ç‚ğ—p‚¢‚ÄƒIƒŠƒWƒiƒ‹‚ÌBasicCompiler‚É‘Î‚µ‚Ä[BasicCompilerForWin10.ips]‚ğ“–‚Ä‚Ä‚­‚¾‚³‚¢B
-‚»‚ê‚ğ[BasicCompiler.exe]‚ÉƒŠƒl[ƒ€‚µ‚Äg‚Á‚Ä‚­‚¾‚³‚¢B
+WinIPSãªã©ã‚’ç”¨ã„ã¦ã‚ªãƒªã‚¸ãƒŠãƒ«ã®BasicCompilerã«å¯¾ã—ã¦[BasicCompilerForWin10.ips]ã‚’å½“ã¦ã¦ãã ã•ã„ã€‚
+ãã‚Œã‚’[BasicCompiler.exe]ã«ãƒªãƒãƒ¼ãƒ ã—ã¦ä½¿ã£ã¦ãã ã•ã„ã€‚
 
-#ƒ`ƒFƒbƒNƒTƒ€
-	ƒIƒŠƒWƒiƒ‹‚ÌCRC32: 748B18A9
-	ƒpƒbƒ`Œã‚ÌCRC32@: D549402B
-	ƒTƒCƒY: 319488ƒoƒCƒg (0 MB)
+# ãƒã‚§ãƒƒã‚¯ã‚µãƒ 
+	ã‚ªãƒªã‚¸ãƒŠãƒ«ã®CRC32: 748B18A9
+	ãƒ‘ãƒƒãƒå¾Œã®CRC32ã€€: D549402B
+	ã‚µã‚¤ã‚º: 319488ãƒã‚¤ãƒˆ (0 MB)
 
-#‰ü‘¢“_F
-	E—áŠOˆ—‚ÌMessageBox‚ğNOP‚Å‚Â‚Ô‚µ‚½
-	E•s–¾‚È—áŠO”­¶‚ÉContinueDebugEvent‚ÌŒp‘±ƒ‚[ƒh‚ğDBG_CONTINUE‚©‚çDBG_EXCEPTION_NOT_HANDLED‚É‚µ‚½
-	@-> GetOpenFileName/GetSaveFileName‚ÌƒoƒO‚ª‰ğŒˆ
+# æ”¹é€ ç‚¹ï¼š
+	ãƒ»ä¾‹å¤–å‡¦ç†ã®MessageBoxã‚’NOPã§ã¤ã¶ã—ãŸ
+	ãƒ»ä¸æ˜ãªä¾‹å¤–ç™ºç”Ÿæ™‚ã«ContinueDebugEventã®ç¶™ç¶šãƒ¢ãƒ¼ãƒ‰ã‚’DBG_CONTINUEã‹ã‚‰DBG_EXCEPTION_NOT_HANDLEDã«ã—ãŸ
+	ã€€-> GetOpenFileName/GetSaveFileNameã®ãƒã‚°ãŒè§£æ±º
 
-##ƒpƒbƒ`‚ÌìÒ
+## ãƒ‘ãƒƒãƒã®ä½œè€…
 RGBA_CRT 2016 [rgba3crt1p@gmail.com]
 	
