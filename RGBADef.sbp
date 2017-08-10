@@ -24,6 +24,7 @@ Declare Function PathFindExtension Lib "SHLWAPI.DLL" Alias "PathFindExtensionA" 
 Declare Function PathRemoveFileSpec Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecA" (pszPath As BytePtr) As Long
 Declare Function PathRenameExtension Lib "SHLWAPI.DLL" Alias "PathRenameExtensionA" (pszPath As BytePtr,newExt AS BytePtr) As Long
  
+Declare Function MakeSureDirectoryPathExists Lib "imagehlp" (lpPath As BytePtr) As Long
 
 '----------------------------------
 '  Device & serial communication
@@ -441,6 +442,15 @@ End Type
 '---------------------------
 '  Windows System 
 '---------------------------
+Const GWLP_WNDPROC	= &HFFFFFFFC
+Const GWLP_HINSTANCE	= &HFFFFFFFA
+Const GWLP_HWNDPARENT	= &HFFFFFFF8
+Const GWLP_USERDATA	= &HFFFFFFEB
+Const GWLP_ID	= &HFFFFFFF4
+
+Declare Function GetWindowLongPtr Lib "user32" Alias "GetWindowLongA" (hwnd As HANDLE, nIndex As Long) As Long
+
+
 'LoadLibrary
 Const DONT_RESOLVE_DLL_REFERENCES	= &H00000001
 Const LOAD_LIBRARY_AS_DATAFILE	= &H00000002

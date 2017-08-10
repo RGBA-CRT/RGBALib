@@ -1,8 +1,8 @@
-'--------------------------
-' 		easyHID
-' Programmed by RGBA_CRT
-'--------------------------
-#include <RGBALib.sbp>
+'--------------------------------
+'	easyHID for ActiveBasic
+'   Programmed by RGBA_CRT 2017
+'-------------------------------
+
 
 '---------------- WinAPI -----------------
 Declare Function HidD_GetHidGuid Lib "hid.dll" (ByRef HidGuid As GUID) As Long
@@ -222,9 +222,6 @@ Function Export EasyHID_openFromHandle(path AS BytePtr) AS EASY_HID_HANDLE
 
 	'productName
 	ret->productName = EasyHID_getProductStringA(ret->hdev)
-
-	'タイムアウト設定
-	SetIOTimeOut(ret->hdev,EASY_HID_TIMEOUT_VALUE)
 
 	EasyHID_openFromHandle=ret
 End Function

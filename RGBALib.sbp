@@ -12,6 +12,8 @@
 ' %fが使える
 Declare Function printfvc cdecl Lib "msvcrt.dll" Alias "printf" (str as BytePtr,format as BytePtr, ...) As Long
 Declare Function printfd cdecl Lib "msvcrt.dll" Alias "printf" (format as BytePtr, v1 AS Double,...) As Long
+Declare Function sprintfvc cdecl Lib "msvcrt.dll" Alias "sprintf" (str as BytePtr,format as BytePtr, ...) As Long
+Declare Function sprintfd cdecl Lib "msvcrt.dll" Alias "sprintf" (str as BytePtr,format as BytePtr, d1 AS double,...) As Long
 
 
 '---------------
@@ -69,12 +71,28 @@ Function GetWndTextAA(hWnd AS HWND) AS BytePtr
 	GetWndTextAA=calloc(Length+5)
 	GetWindowText(hWnd,GetWndTextAA,Length+1)
 EndFunction
-
+/*
 'エラーメッセージ表示
 Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword) As Long
 	SetForegroundWindow(hOwner)
 	MessageBeep(MB_ICONHAND)
 	ErrMes=MessageBox(hOwner,Text,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag)
+EndFunction*/
+
+'エラーメッセージ表示(TST用)
+Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(ErrCode As DWord) As Long
+	SetForegroundWindow(hOwner)
+	MessageBeep(MB_ICONHAND)
+	if ErrCode=0 Then
+		ErrMes=MessageBox(hOwner,Text,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag)
+		DBM(Text)
+	Else
+		Dim SysErrMes AS BytePtr
+		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, _
+  			NULL, ErrCode, LANG_USER_DEFAULT, VarPtr(SysErrMes), 0, NULL)
+		ErrMes=MessageBoxf(hOwner,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag,ex"%s\nErrCode : %d\n%s",Text As DWord,ErrCode,SysErrMes AS DWord)
+		free(SysErrMes)
+	endif
 EndFunction
 
 'printfのMessageBox版
@@ -171,6 +189,41 @@ Function UTF16ToSJIS(utf16 AS BytePtr) AS BytePtr
    WideCharToMultiByte(CP_ACP, 0, utf16, -1, UTF16ToSJIS, l, 0, 0)
 End Function
 
+Function UTF8ToUnicode(utf8Str AS BytePtr) As BytePtr
+	Dim l As Long
+	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0)
+	UTF8ToUnicode=calloc(l*3)
+	MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, UTF8ToUnicode, l)
+End Function
+
+Function UTF8ToSJIS(utf8Str AS BytePtr) As BytePtr
+	Dim l As Long,uni AS BytePtr
+	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0)
+	uni=calloc(l*3)
+	UTF8ToSJIS=calloc(l*3)
+	MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, uni, l)
+	WideCharToMultiByte(CP_ACP,0,uni,-1,UTF8ToSJIS,l*3,0,0)
+	free(uni)
+End Function
+
+Function UTF8toSJIS_Str(source As BytePtr) As String
+   Dim u2s As BytePtr
+   Dim u2s_out As BytePtr
+   Dim l As Long
+   
+   ' UTF-8からUnicodeに変換
+   l=MultiByteToWideChar(CP_UTF8, 0, source, -1, 0, 0)
+   u2s_out=calloc(l*2+2)
+   MultiByteToWideChar(CP_UTF8, 0, source, -1, u2s_out, l)
+   
+   ' UnicodeからShift-JISに変換
+   l=WideCharToMultiByte(CP_ACP, 0, u2s_out, -1, 0, 0, 0, 0)
+   UTF8toSJIS_Str=ZeroString(l)
+   WideCharToMultiByte(CP_ACP, 0, u2s_out, -1, UTF8toSJIS_Str, l, 0, 0)
+   
+   ' 後始末
+   free(u2s_out)
+End Function
 
 
 'BM法文字列サーチ（指定文字列内に特定の文字列があるか？＝True or false）(バグあり)
@@ -334,7 +387,7 @@ Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
 EndFunction
 
 'ファイルパスが正しいかチェック
-Function IsFilePath(FilePath AS BytePtr) As Byte
+Function IsFilePath(FilePath AS BytePtr) As BOOL
 	Dim hFile AS HANDLE,dFilePath As BytePtr
 	if FilePath[0]=&H22 Then 
 		dFilePath=DelDQ(FilePath)
@@ -351,10 +404,18 @@ Function IsFilePath(FilePath AS BytePtr) As Byte
 	if FilePath<>dFilePath Then free(dFilePath)
 EndFunction
 
+'標準Windows
 Function sprintfStr(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) AS String
 	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
 	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	sprintfStr=MakeStr(Buf)
+EndFunction
+
+'使うとVCランタイム要求になる
+Function doubleToFormatStr(lpFormat As BytePtr)(a As Double) AS String
+	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
+	ret=sprintfd(Buf,lpFormat,a)
+	doubleToFormatStr=MakeStr(Buf)
 EndFunction
 
 
@@ -514,6 +575,27 @@ Sub ConsoleReturnChar(count AS Long)
 	CmdPos.dwCursorPosition.X-=count
 	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
 EndSub
+
+Enum ABRLC_COLOR
+	CC_DEFAULT
+	CC_BLUE		= &H01
+	CC_GREEN	= &H02
+	CC_RED		= &H04
+End Enum
+
+Sub SetConsoleColor(color AS ABRLC_COLOR)
+	Dim attr AS Word
+
+	if color=CC_DEFAULT Then 
+		attr=CC_BLUE or CC_GREEN or CC_RED
+	Else
+		attr=color And &H07
+	End If
+
+	'attr = attr or &H56
+
+	SetConsoleTextAttribute(_System_hConsoleOut,attr)
+End Sub
 
 'コンソールのウィンドウハンドルを取得
 Function GetConsoleWndHandle() AS HANDLE
@@ -895,7 +977,21 @@ Class FilePath
 Private
 	pathStr AS StringClass
 	pNull AS DWord
+	separator AS Char	' \
 Public
+
+	Sub FilePath()
+		setPathSeparator("\")
+	End Sub
+
+	Sub setPathSeparator(newSeparator as BytePtr)
+		separator=newSeparator[0]
+	End Sub
+
+	Sub setPathSeparatorChar(newSeparator as Char)
+		separator=newSeparator
+	End Sub
+
 	'ファイルかフォルダかはわからないけどパスがセットされた
 	Sub SetPath(path As BytePtr)
 		'ダブルクォーテーションを削除しつつメモリ確保＆格納
@@ -904,30 +1000,46 @@ Public
 	EndSub
 
 	'フォルダを一階層下げるなどの用途がある
-	Sub PushDir(SubDir As BytePtr)
-		if pathStr.ptr[pNull-1]=Asc("\") Then
-			pathStr.cat(SubDir)
-			pathStr.cat("\")
-		Else
-			pathStr.cat(SubDir)
-			pathStr.cat("\")
-		Endif
+	Sub PushFile(filename As BytePtr)
+		if pNull<>0 And pathStr.ptr[pNull-1]<>separator Then
+			pathStr.addChar(separator)
+		End If
+		pathStr.cat(filename)
 	EndSub
 
+	Sub PushDir(SubDir As BytePtr)
+		PushFile(SubDir)
+		pathStr.addChar(separator)
+	EndSub
+
+	'ディレクトリから出る
 	Sub PopDir()
 		Dim i As Long
 		For i = pathStr.length()-2 To 0 Step -1
-			if pathStr.ptr[i]=Asc("\") Then	ExitFor
+			if pathStr.ptr[i]=separator Then	ExitFor
 			if pathStr.ptr[i]=Asc(":") Then ExitSub
 		Next i
 		pathStr.TerminateChar(i+1)
 		'Base[i+1]=0
 	EndSub
 	
+	'拡張子削除
+	Sub deleteExtension()
+		Dim extPtr AS BytePtr
+		extPtr=PathFindExtension(pathStr.ptr)
+
+		if extPtr=NULL Then ExitSub
+
+		extPtr[0]=0
+		pNull=extPtr-pathStr.ptr
+	End Sub
+
+	'文字列やファイル名など追加
 	Sub cat(text as BytePtr)
 		pathStr.cat(text)
 	EndSub
 
+	'ファイル存在チェック
 	Function isExist() AS Long
 		isExist=PathFileExists(pathStr.ptr)
 	EndFunction
@@ -944,6 +1056,10 @@ Public
 		GetPathString=pathStr.getString()
 	EndFunction
 
+	Function genAddedPath(additionalPath AS BytePtr) AS String
+		genAddedPath=sprintfStr("%s%s",pathStr.ptr,additionalPath)
+	EndFunction
+
 	Function GetPath() AS BytePtr
 		GetPath=pathStr.ptr
 	EndFunction
@@ -957,11 +1073,11 @@ Public
 	EndFunction
 
 	Function GetFileDirString() AS String
-		Dim tmp AS BytePtr
-		pathStr.copyToNewPtr(tmp)
-		PathRemoveFileSpec(tmp)
-		GetFileDirString=MakeStr(tmp)
-		free(tmp)
+		Dim tmp AS FilePath
+		tmp.setPathSeparatorChar(separator)
+		tmp.SetPath(pathStr.ptr)
+		tmp.PopDir()
+		GetFileDirString=MakeStr(tmp.GetPath())
 	EndFunction
 
 	Sub Destroy()
@@ -981,7 +1097,7 @@ Private
 	hFile As HANDLE
 Public
 	path AS FilePath
-	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS Long
+	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS BOOL
 		Dim CreateMode AS Dword
 		If _Mode=GENERIC_READ then
 			CreateMode=OPEN_EXISTING
@@ -1005,7 +1121,7 @@ Public
 	     Dim dwAB As BytePtr
 	     read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
 	     If read=TRUE And dwAB=0 then
-	          read=-1 As Long
+	          read=-1 As Long	'EOF
 	     ElseIf read=FALSE then
 	          read=-2 As Long
 	     Else
@@ -1025,8 +1141,13 @@ Public
 		getFilePtr=SetFilePointer(hFile,0,0,FILE_CURRENT)
 	EndFunction
 
+	'up to 4GB
 	Sub setFilePtr(fp AS DWord)
-		SetFilePointer(hFile,fp,0,FILE_BEGIN)
+		'SetFilePointerのlpDistanceToMoveHighをNULLにすると下位がLong扱いになる
+		'なので適当な変数をHighにセットしておけば下位はDWord扱いになる
+		Dim high AS Long
+'		SetLastError(0)
+		SetFilePointer(hFile,fp,VarPtr(high),FILE_BEGIN)
 	End Sub
 
 	Sub addFilePtr(fp AS DWord)
@@ -1058,10 +1179,10 @@ End Class
 Const STRCLASS_SPF_BUFFER = 1024
 Class StringClass
 Private
-	pNull As DWord
-	size AS DWord
+	pNull As DWord	'nullpos
+	size AS DWord	'buffer size
 Public
-	ptr AS BytePtr
+	ptr AS BytePtr	'string
 
 	Function cat(text AS BytePtr) AS Long
 		Dim txlen AS DWord
@@ -1071,6 +1192,35 @@ Public
 		pNull+=txlen
 		ptr[pNull]=0
 	EndFunction
+
+	Sub insertHead(newStr AS BytePtr)
+		Dim tmp AS BytePtr
+		copyToNewPtr(tmp)
+		set(newStr)
+		cat(tmp)
+	End Sub
+
+	Sub replaceChar(old AS *Byte,newc AS *Byte)
+		if pNull=0 Then ExitSub
+		Dim i As Long
+		Do
+			if ptr[i]=0 Then ExitSub
+			if ptr[i]=old[0] Then ptr[i]=newc[0]
+			i++
+		Loop
+	End Sub
+
+	'
+	Sub requestBuffer(len As Long)
+		if pNull+len > size Then allocStr(len+size)
+	End Sub
+
+	Sub addChar(char AS Char)
+		requestBuffer(pNull+1)
+		ptr[pNull]=char
+		pNull++
+		ptr[pNull]=0
+	End Sub
 
 	Function cpy(text AS BytePtr) AS Long
 		Dim txlen AS DWord
@@ -1101,9 +1251,9 @@ Public
 
 	Sub set(text AS BytePtr)
 		freeStr()
-		ptr=text
 		pNull=lstrlen(text)
-		size=pNull
+		allocStr(pNull)
+		memcpy(ptr,text,pNull)
 	EndSub
 
 	Sub copyToNewPtr(ByRef dest As BytePtr)
