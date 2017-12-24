@@ -84,7 +84,7 @@ Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(E
 	SetForegroundWindow(hOwner)
 	MessageBeep(MB_ICONHAND)
 	if ErrCode=0 Then
-		ErrMes=MessageBox(hOwner,Text,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag)
+		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName,Title),MB_ICONERROR Or Flag)
 		DBM(Text)
 	Else
 		Dim SysErrMes AS BytePtr
@@ -142,6 +142,18 @@ Endfunction
 '----------------------
 '		Binaly
 '----------------------
+
+Function isSameBin(dat1 AS BytePtr, dat2 AS BytePtr,length aS DWord) AS BOOL
+	Dim i  AS DWord
+	For i = 0 To length-1
+		if dat1[i]<>dat2[i] Then
+			isSameBin=FALSE
+			ExitFunction
+		Endif
+	Next i
+	isSameBin=TRUE
+End Function
+
 Sub ChangeEndianDW(ByRef in As DWord)
 	Dim Tmp As Byte
 	Dim value As *Byte
@@ -678,13 +690,14 @@ Endfunction
 '---------------
 '	Device 
 '---------------
+Const MAXDWORD=&HFFFFFFFF
 Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
 	Dim ct AS COMMTIMEOUTS
-	ct.ReadIntervalTimeout=TimeOut		'連続受信タイムアウト
+	ct.ReadIntervalTimeout=MAXDWORD		'連続受信タイムアウト
+	ct.ReadTotalTimeoutMultiplier=MAXDWORD
 	ct.ReadTotalTimeoutConstant=TimeOut	'Constant+Multiplier*バイト数＝タイムアウト
-	ct.ReadTotalTimeoutMultiplier=20
 	ct.WriteTotalTimeoutConstant=TimeOut
-	ct.WriteTotalTimeoutMultiplier=20
+	ct.WriteTotalTimeoutMultiplier=MAXDWORD
 
 	SetCommTimeouts(hComPortPort,VarPtr(ct))
 EndFunction
