@@ -1,5 +1,6 @@
 'RGBA_CRT's Librarys
 #include <RGBADef.sbp>
+#include <EasyHID.sbp>
 /*  Todo : 
 		HTTP系をクラスに
 */
@@ -1106,7 +1107,7 @@ End Class
 
 'EasyIOのクラス版
 Class File
-Private
+Protected
 	hFile As HANDLE
 Public
 	path AS FilePath
@@ -1187,6 +1188,17 @@ Public
 	End Sub
 End Class
 
+Class Device 
+	Inherits File
+	
+Public
+	Function IoCommand(ioCommand As DWord) As BOOL
+		Dim dwAB AS DWord
+		if DeviceIoControl(hFile,ioCommand,NULL,0,NULL,0,VarPtr(dwAB),NULL)=0 Then _
+			ExitFunction
+		IoCommand=TRUE
+	End Function
+End Class
 
 '速度重視の文字列クラス
 Const STRCLASS_SPF_BUFFER = 1024
@@ -1601,6 +1613,21 @@ Function OpenFile(Path As BytePtr,_Mode AS DWORD) AS HANDLE
      EndIf
      OpenFile=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
      If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
+EndFunction
+
+'戻り値が-1からNULLになった
+'よりわかりやすい感じに
+Function OpenFileEx(Path As BytePtr,_Mode AS DWORD) AS HANDLE
+     Dim CreateMode AS Dword
+     If _Mode=GENERIC_READ then
+          CreateMode=OPEN_EXISTING
+	Elseif  _Mode=GENERIC_WRITE then
+		CreateMode=CREATE_ALWAYS
+     Else
+          CreateMode=OPEN_ALWAYS
+     EndIf
+     OpenFileEx=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
+     If OpenFileEx=INVALID_HANDLE_VALUE then OpenFileEx = NULL As VoidPtr
 EndFunction
 
 Function LoadFile(hFile As HANDLE,DataPtr As BytePtr,Size As DWORD) As BytePtr
