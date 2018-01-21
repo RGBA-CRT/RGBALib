@@ -29,8 +29,8 @@ Const ChangeEndianWord(x) = ((x>>8) and &HFF) or (x and &HFF)<<8
 Sub PumpMessage() 
 	Dim msg As MSG
  	while PeekMessage( msg, NULL, 0, 0, PM_REMOVE ) 
-    TranslateMessage( msg )
-    DispatchMessage( msg )
+	TranslateMessage( msg )
+	DispatchMessage( msg )
   	Wend
 EndSub
 
@@ -48,8 +48,8 @@ Function GetDlgItemHex(hWnd AS HWND) AS Long
 			if buf[i+1]=&H78 Or buf[i+1]=&H58 Then	'x'
 				'16進決定,0xを&Hに変更
 				buf[i]=&H26:	buf[i+1]=&H48
-			endif
-		endif
+			EndIf
+		EndIf
 		ExitDo		
 	Loop
 	GetDlgItemHex=Val(buf+i) AS Long
@@ -93,7 +93,7 @@ Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(E
   			NULL, ErrCode, LANG_USER_DEFAULT, VarPtr(SysErrMes), 0, NULL)
 		ErrMes=MessageBoxf(hOwner,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag,ex"%s\nErrCode : %d\n%s",Text As DWord,ErrCode,SysErrMes AS DWord)
 		free(SysErrMes)
-	endif
+	EndIf
 EndFunction
 
 'printfのMessageBox版
@@ -113,7 +113,7 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 	if CreateProcess(App,CmdLine,ByVal NULL,ByVal NULL,FALSE,CREATE_NEW_CONSOLE,NULL,NULL,si,pi)=FALSE Then'CREATE_NEW_CONSOLE を 0にすれば非表示
 		RunAndGetExitCode=-1
 		ExitFunction
-	endif
+	EndIf
 
 	' 子プロセス起動成功
 	Child = pi.hProcess
@@ -127,18 +127,18 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 		'wait error!
 		RunAndGetExitCode=-1
 		ExitFunction
-	endif
+	EndIf
 
 	' 子プロセスの終了コードを取得
 	Dim exitCode As DWORD
 	if GetExitCodeProcess(Child, exitCode)=FALSE then
 		RunAndGetExitCode=-1
 		ExitFunction
-	endif
+	EndIf
 
 	if Child<>0 then CloseHandle(Child)
 	RunAndGetExitCode=exitCode
-Endfunction
+EndFunction
 
 '----------------------
 '		Binaly
@@ -150,7 +150,7 @@ Function isSameBin(dat1 AS BytePtr, dat2 AS BytePtr,length aS DWord) AS BOOL
 		if dat1[i]<>dat2[i] Then
 			isSameBin=FALSE
 			ExitFunction
-		Endif
+		EndIf
 	Next i
 	isSameBin=TRUE
 End Function
@@ -169,7 +169,7 @@ EndSub
 
 Function Str2Dw(Data As BytePtr) As DWORD
 	memcpy(VarPtr(Str2Dw),Data,4)
-endfunction
+EndFunction
 
 Function Dw2Str(Data As DWORD) As String
 	Dim Str[4] As Byte
@@ -263,11 +263,11 @@ Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As D
 			While Src[j]=Text[k]
 				if k=0 then 
 					Goto *FOUND
-				Endif
+				EndIf
 				j--
 				k--
 			Wend
-		Endif
+		EndIf
 	Next i
 	SerchTextLine=FALSE
 	ExitFunction
@@ -311,10 +311,10 @@ Function InStrByte(Data As BytePtr,Serch As Byte,DataSize As DWORD) As Long
 		if i=DataSize then
 			InStrByte=-1
 			ExitFunction
-		endif
+		EndIf
 		i++
 	Loop
-endfunction
+EndFunction
 
 'APIを使った高速バージョンのダブルクォーテーション抜き
 Function DelDQ(Text As BytePtr) As BytePtr
@@ -329,7 +329,7 @@ Function DelDQ(Text As BytePtr) As BytePtr
 	memcpy(DelDQ,tmp,txlen+1)
 EndFunction
 
-'LF,CR -> CRLF     戻り値は別メモリなので各自開放すること
+'LF,CR -> CRLF	戻り値は別メモリなので各自開放すること
 Function ConvCRLF(Text As *Byte) As BytePtr
 	Dim ti As Long
 	dim ci as long
@@ -354,7 +354,7 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 				CRLFD[ci]=&H0A				'そしてLFを追加
 			Else
 				CRLFD[ci]=&H0A				'違ったら（正しくCRLFになってたら）そのまま
-			Endif
+			EndIf
 		Elseif Text[ti] = &H0D then			'↑と大体同じ
 			if Text[ti+1] <> &H0A then
 				CRLFD[ci]=&H0D
@@ -365,10 +365,10 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 				CRLFD[ci]=&H0A
 			Else
 				CRLFD[ci]=&H0D
-			Endif
+			EndIf
 		Else
 			CRLFD[ci]=Text[ti]				'改行文字と無関係の場合
-		Endif 
+		EndIf 
 		ti++
 		ci++
 		if ti = l Then ExitDo		
@@ -388,7 +388,7 @@ Function win_strncmpi(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
 		win_strncmpi=TRUE
 	Else
 		win_strncmpi=FALSE
-	endif
+	EndIf
 EndFunction
 
 Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
@@ -396,7 +396,7 @@ Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
 		win_strncmp=TRUE
 	Else
 		win_strncmp=FALSE
-	endif
+	EndIf
 EndFunction
 
 'ファイルパスが正しいかチェック
@@ -406,7 +406,7 @@ Function IsFilePath(FilePath AS BytePtr) As BOOL
 		dFilePath=DelDQ(FilePath)
 	Else
 		dFilePath=FilePath
-	endif
+	EndIf
 	hFile=CreateFile(dFilePath,GENERIC_READ,FILE_SHARE_READ OR FILE_SHARE_WRITE,ByVal NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL)
 	If hFile=INVALID_HANDLE_VALUE Then
 		IsFilePath=FALSE
@@ -449,7 +449,7 @@ Function URLDecode(pFrom As BytePtr) As BytePtr
 			i=i+2
 		Else
 			lstrcat(URLDecode , Chr$(pFrom[i]))
-		Endif
+		EndIf
 		i++			
 		if pFrom[i] = 0 Then ExitDo
    Loop
@@ -479,7 +479,7 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 		if opt_text=0 Then opt_text=""
 		wsprintf(errMes,ex"%s%sのロードに失敗しました。\nDLLが存在するか確認してください。\nErrorCode : %d",DllName,opt_text,GetLastError())
 		Goto *DDL_RETURN_ERROR
-	endif
+	EndIf
 
 	Dim i AS Long
 	For i = 0 To count-1
@@ -490,7 +490,7 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 			if opt_text=0 Then opt_text=""
 			wsprintf(errMes,ex"%sから必要な関数が見つかりませんでした。\n正しいバージョンのDLLか確認してください。\nProcName : %s\nErrorCode : %d",DllName,func_list[i].alias,GetLastError())
 			Goto *DDL_RETURN_ERROR
-		Endif
+		EndIf
 	Next i
 
 	DynamicDllLoader=hDll
@@ -501,7 +501,7 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 	if errMes<>0 Then 
 		MessageBox(hWnd,errMes,"DLLロードエラー",MB_ICONERROR)
 		free(errMes)
-	endif
+	EndIf
 EndFunction
 
 'バイナリに実行可能属性追加
@@ -663,7 +663,7 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 				printf("-- ",0)
 			Else 
 				printf("%02X ",Data[Adr+i])
-			endif
+			EndIf
 		Next i
 		Print " ";
 		For i=0 To &H0F
@@ -672,7 +672,7 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 				Print ".";
 			Else
 				printf("%1c",Data[Adr+i])
-			Endif
+			EndIf
 		Next i
 		i=0
 		Adr+=&H10
@@ -683,7 +683,7 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 	Print
 '	Print Hex$(Adr*&H10+i)+"="+Hex$(Size)
 	Dump=Adr
-Endfunction
+EndFunction
 
 
 
@@ -814,7 +814,7 @@ Function InputMatrix()(Message AS BytePtr) AS *ABMatrix
 			free(dr[i])
 		Next i
 		ExitFunction
-	Endif
+	EndIf
 
 	InputMatrix=new ABMatrix(y,ox)
 	For i=0 To y-1
@@ -856,7 +856,7 @@ Function Str2DoubleAry(str AS BytePtr,ByRef count AS Long) AS *double	debug
 	Else
 		free(Str2DoubleAry)
 		Str2DoubleAry=0
-	Endif
+	EndIf
 End Function
 
 Function CountChar(str AS BytePtr,chara AS Byte) AS Long
@@ -906,7 +906,7 @@ Public
 			ParseCommandLine(GetCommandLine())
 		Else
 			ParseCommandLine(text)
-		endif
+		EndIf
 	EndSub
 	Sub ~CommandLine()
 		freeMem()
@@ -932,8 +932,8 @@ Public
 			cmpCmd=TRUE
 		Else
 			cmpCmd=FALSE
-		endif
-	Endfunction
+		EndIf
+	EndFunction
 
 	Function ParseCommandLine(text AS BytePtr) AS Long
 '		OutputDebugString(ex"called\n")
@@ -950,7 +950,7 @@ Public
 		For i = 0 To txlen
 			if cmdStr[i]=Asc(" ") Then 
 				ExpectedCount++
-			endif
+			EndIf
 		Next i
 
 		'スペースの分だけテーブルを確保,構築
@@ -971,7 +971,7 @@ Public
 
 				'tarminate 1 opt
 				cmdStr[i]=0
-			endif 
+			EndIf 
 		Next i
 		count=it
 		it++
@@ -1063,7 +1063,7 @@ Public
 			isDir=FALSE
 		Else
 			isDir=TRUE
-		Endif
+		EndIf
 	EndFunction
 
 	Function GetPathString() AS String
@@ -1117,8 +1117,8 @@ Public
 			CreateMode=OPEN_EXISTING
 		Elseif  _Mode=GENERIC_WRITE then
 			CreateMode=CREATE_ALWAYS
-	    Else
-	    	CreateMode=OPEN_EXISTING
+		Else
+			CreateMode=OPEN_EXISTING
 		EndIf
 
 		hFile=CreateFile(inPath, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
@@ -1127,20 +1127,20 @@ Public
 			hFile=0
 		Else
 			openFile = TRUE
-		Endif
+		EndIf
 		path.SetPath(inPath)
 	EndFunction
 
 	Function read(dest AS BytePtr,size As DWord) AS Long
-	     Dim dwAB As BytePtr
-	     read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
-	     If read=TRUE And dwAB=0 then
-	          read=-1 As Long	'EOF
-	     ElseIf read=FALSE then
-	          read=-2 As Long
-	     Else
-	          read=dwAB AS Long
-	     EndIf
+		Dim dwAB As BytePtr
+		read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
+		If read=TRUE And dwAB=0 then
+			read=-1 As Long	'EOF
+		ElseIf read=FALSE then
+			read=-2 As Long
+		Else
+			read=dwAB AS Long
+		EndIf
 	End Function
 
 	Function readDw() AS Long
@@ -1304,7 +1304,7 @@ Public
 			ptr=calloc(size)
 		Else
 			ptr=realloc(ptr,size)
-		Endif
+		EndIf
 	EndSub
 
 	Sub freeStr()
@@ -1583,7 +1583,7 @@ Public
 				if iy<>ix Then
 					coff=tmp->Get(iy,ix)
 					For sx = 0 To x-1
-						'更新セル = 更新セル     - 消したいとこ　 × 今の列の1にしたいとこ（ix=iy） 
+						'更新セル = 更新セル	- 消したいとこ　 × 今の列の1にしたいとこ（ix=iy） 
 						tmp->Set(tmp->Get(iy,sx) - tmp->Get(ix,sx) * coff ,iy,sx)
 						ret->Set(ret->Get(iy,sx) - ret->Get(ix,sx) * coff ,iy,sx)
 					Next sx
@@ -1603,52 +1603,52 @@ End Class
 '#include <EasyIO.sbp>
 'Path にパス、ModeにGENERIC_READかGENERIC_WRITE
 Function OpenFile(Path As BytePtr,_Mode AS DWORD) AS HANDLE
-     Dim CreateMode AS Dword
-     If _Mode=GENERIC_READ then
-          CreateMode=OPEN_EXISTING
+	Dim CreateMode AS Dword
+	If _Mode=GENERIC_READ then
+		CreateMode=OPEN_EXISTING
 	Elseif  _Mode=GENERIC_WRITE then
 		CreateMode=CREATE_ALWAYS
-     Else
-          CreateMode=OPEN_ALWAYS
-     EndIf
-     OpenFile=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-     If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
+	Else
+		CreateMode=OPEN_ALWAYS
+	EndIf
+	OpenFile=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
+	If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
 EndFunction
 
 '戻り値が-1からNULLになった
 'よりわかりやすい感じに
 Function OpenFileEx(Path As BytePtr,_Mode AS DWORD) AS HANDLE
-     Dim CreateMode AS Dword
-     If _Mode=GENERIC_READ then
-          CreateMode=OPEN_EXISTING
+	Dim CreateMode AS Dword
+	If _Mode=GENERIC_READ then
+		CreateMode=OPEN_EXISTING
 	Elseif  _Mode=GENERIC_WRITE then
 		CreateMode=CREATE_ALWAYS
-     Else
-          CreateMode=OPEN_ALWAYS
-     EndIf
-     OpenFileEx=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-     If OpenFileEx=INVALID_HANDLE_VALUE then OpenFileEx = NULL As VoidPtr
+	Else
+		CreateMode=OPEN_ALWAYS
+	EndIf
+	OpenFileEx=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
+	If OpenFileEx=INVALID_HANDLE_VALUE then OpenFileEx = NULL As VoidPtr
 EndFunction
 
 Function LoadFile(hFile As HANDLE,DataPtr As BytePtr,Size As DWORD) As BytePtr
-     Dim dwAB As BytePtr
-     LoadFile=ReadFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL) As BytePtr
-     If LoadFile=TRUE And dwAB=0 then
-          LoadFile=-1 As BytePtr
-     ElseIf LoadFile=FALSE then
-          LoadFile=-2 As BytePtr
-     Else
-          LoadFile=DataPtr
-     EndIf
+	Dim dwAB As BytePtr
+	LoadFile=ReadFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL) As BytePtr
+	If LoadFile=TRUE And dwAB=0 then
+		LoadFile=-1 As BytePtr
+	ElseIf LoadFile=FALSE then
+		LoadFile=-2 As BytePtr
+	Else
+		LoadFile=DataPtr
+	EndIf
 EndFunction
 
 Function OutFile(hFile As HANDLE,DataPtr As BytePtr,Size As DWORD)
-     Dim dwAB As BytePtr
-     OutFile=WriteFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL)
+	Dim dwAB As BytePtr
+	OutFile=WriteFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL)
 EndFunction
 
 Function GetFilePointer(hFile As HANDLE) As DWORD
-     GetFilePointer=SetFilePointer(hFile,0,0,FILE_CURRENT)
+	GetFilePointer=SetFilePointer(hFile,0,0,FILE_CURRENT)
 EndFunction
 
 '引数をNULLで区切る。NULL NULLで終わり (例）コマンド\0引数１\0"引数2"\0\0
@@ -1662,28 +1662,28 @@ Function MakeCmdLine(Text As BytePtr) as BytePtr
 	Buf=calloc(lstrlen(Text)+4)
 	
 	For i = 0 To lstrlen(Text)
-			If SP=-1 then
-				If Text[i]<>&H20 then
-					SP=i
-					dbg=1
-				Else
-					Continue
-				EndIf
+		If SP=-1 then
+			If Text[i]<>&H20 then
+				SP=i
+				dbg=1
+			Else
+				Continue
 			EndIf
+		EndIf
 
-			If fDQ=0 then
-				If Text[i]=&H20 then
-					memcpy(Buf+bi,Text+SP,i-SP)
-					bi+=(i-SP)+1
-					Buf[bi-1]=SPR
-					SP=-1
-				ElseIf Text[i]=0 then
-					memcpy(Buf+bi,Text+SP,i-SP)
-					bi+=(i-SP)+1
-					Buf[bi-1]=SPR
-				elseIf Text[i]=&H22 then'Doubleクォーテート
-					fDQ=Not(fDQ)
-				Else
+		If fDQ=0 then
+			If Text[i]=&H20 then
+				memcpy(Buf+bi,Text+SP,i-SP)
+				bi+=(i-SP)+1
+				Buf[bi-1]=SPR
+				SP=-1
+			ElseIf Text[i]=0 then
+				memcpy(Buf+bi,Text+SP,i-SP)
+				bi+=(i-SP)+1
+				Buf[bi-1]=SPR
+			elseIf Text[i]=&H22 then'Doubleクォーテート
+				fDQ=Not(fDQ)
+			Else
 			EndIf
 			dbg=0
 		Else
@@ -1696,7 +1696,7 @@ Function MakeCmdLine(Text As BytePtr) as BytePtr
 	Buf[bi]=0
 	Buf[bi+1]=0
 	MakeCmdLine=Buf
-Endfunction
+EndFunction
 
 '↑で作られた文字列を扱う関数
 '↑はNULLで区切られているので、lstrcpyみたいな関数が使える。
@@ -1714,7 +1714,7 @@ Function GetCmdAdr(Text AS BytePtr,Num As Byte) AS DWORD
 		EndIf
 		i++
 	Loop
-Endfunction
+EndFunction
 
 Function FillString(Text As BytePtr,Buf As BytePtr,Num As DWord ,Max As DWord) As DWord
 	Dim i As DWord/*,tSize As DWord*/,ti As DWord,nMake As DWord
@@ -1733,10 +1733,10 @@ EndFunction
 
 'NULL文字記憶型strcat
 Sub pstrcat(To As BytePtr,Src As BytePtr ,ByRef Ptr As DWORD)(Size As DWORD)
-     If Size = 0 then Size=lstrlen(Src)
-     memcpy(To+Ptr,Src,Size)
+	If Size = 0 then Size=lstrlen(Src)
+	memcpy(To+Ptr,Src,Size)
 	'(free(Src)
-     Ptr += Size
+	Ptr += Size
 endsub
 
 Function Lit2Big(Data As Word) As Dword

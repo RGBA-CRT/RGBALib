@@ -1,0 +1,172 @@
+<html>
+  <head>
+    <meta charset="sjis"/>
+    <style>
+	    pre {
+			-moz-tab-size: 4 ;	/* Firefox用 */
+			tab-size: 4 ;
+		}
+	</style>
+  </head>
+  <body>
+    <hr>
+    <small>
+    <pre>
+ <code>
+ #include<stdio.h>
+
+int __cdecl test(int a,int b){
+	return a+b;
+}
+
+int __stdcall test_std(int a,int b){
+	return a+b;
+}
+
+#define funcPtr unsigned int
+
+int __stdcall cdeclLoader(funcPtr func,int *params,unsigned char nParam){
+
+}
+
+int main(){
+	test(4,2);
+	test_std(8,96);
+}
+
+ </code>
+</pre>
+    <pre>
+ <code class="ab" >
+ #include &lt;RGBALib.sbp&gt;
+
+Const SFC_SPEC_HEADER_SIZE=32
+Const SFC_SPEC_HEADER_ADDR=&amp;HFFC0
+
+Const HiROM_START_ADR=&amp;HC00000
+
+Const SRAM_ADDRESS_LoROM_NORMAL = &amp;H700000&#039;&amp;H380000
+Const SRAM_ADDRESS_LoROM_MAD     = &amp;H384000
+
+Const SRAM_ADDRESS_HiROM_NORMAL = &amp;H1C0000
+Const SRAM_ADDRESS_HiROM_MAD     = &amp;H206000&#039;&amp;HA06000
+
+Const OE = 1
+Const CE = 2
+Const WE = 4
+Const RST= 8
+Const SRAM_READ_NOMAL = RST or WE 
+Const SRAM_READ_MAD   = RST or WE or CE
+Const SRAM_WRITE_NORMAL=RST or OE
+Const SRAM_WRITE_MAD  = RST or OE or CE
+Const DEFAULT_CTRLBUS = 12
+Enum SFC_ROM_TYPE
+    SFC_ROM_HiROM
+    SFC_ROM_LoROM 
+    SFC_ROM_ExHiROM
+End Enum
+    
+Type SFC_ROM_HEADER
+    Title[21] AS Byte
+    ROMType As SFC_ROM_TYPE
+    CartType AS Byte
+    ROMSize AS DWord
+    SRAMSize AS DWord
+    SRAMAddress As DWord
+    Country AS Byte
+    Version AS Byte
+    CheckSum1 AS Word
+    CheckSum2 AS Word
+    Mad AS Byte
+EndType
+&#039;仮想関数を使ってみるテスト
+;comment
+
+Class Oya
+Public
+&#039;    VTable[3] AS *Function()
+    Virtual Sub V()&#039;仮想関数は定義不可
+&#039;    End Sub
+
+    Sub X()
+        Print &quot;Oya::X&quot;
+    End Sub
+End Class
+
+End Sub
+
+#console
+#include<RGBALib.sbp>
+
+Print "SCSI Eject Test - RGBA_CRT 2018"
+
+Dim drive AS Device
+if drive.openFile("\\.\a:",GENERIC_READ or GENERIC_WRITE) = FALSE Then
+	Print "open error"
+	end
+Endif
+
+if drive.IoCommand(IOCTL_STORAGE_CHECK_VERIFY )=FALSE Then
+	Print "Disk not inserted!!!"
+	End
+Endif
+
+Print "Disk is available"
+
+if drive.IoCommand(FSCTL_LOCK_VOLUME)=TRUE Then
+	Print "Device is not using!"
+	drive.IoCommand( FSCTL_UNLOCK_VOLUME)
+
+	Dim yn AS Dword
+	Input "Eject disk? >",yn
+	if yn=1 Then 
+		drive.IoCommand(IOCTL_STORAGE_EJECT_MEDIA )
+	Endif
+Else
+	Print "Drive is busy!"
+	End
+Endif
+Print "End"
+
+
+ </code>
+</pre>
+    <input type="button" value="Load ?.sbp" onclick="replace()"/>
+    <script>
+	//from view-source:https://highlightjs.org/
+	//from https://developer.cybozu.io/hc/ja/articles/201850320-JavaScript%E3%81%A7%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E3%82%92%E3%81%99%E3%82%8B%E3%81%9F%E3%82%81%E3%81%AB%E6%B0%97%E3%82%92%E3%81%A4%E3%81%91%E3%82%8B%E3%81%93%E3%81%A8
+	
+	function replace(){
+		const request = new XMLHttpRequest();
+		request.open("GET", `NDS-MemoryExPack.abp`);
+		request.overrideMimeType("text/plain; charset=shift_jis");
+		request.addEventListener("load", (event) => {
+			var code = escapeHtml(event.target.responseText);
+			document.getElementById('codearea').innerHTML = code;
+		    var snippet = document.querySelector('#snippet pre code');
+		    hljs.highlightBlock(snippet);
+		});
+		request.send();
+	}
+	function escapeHtml(str) {
+	    str = str.replace(/&/g, '&amp;');
+	    str = str.replace(/</g, '&lt;');
+	    str = str.replace(/>/g, '&gt;');
+	    str = str.replace(/"/g, '&quot;');
+	    str = str.replace(/'/g, '&#39;');
+	    return str;
+	}
+	
+</script>
+    <div id="snippet">
+      <pre>
+ <code class="ab" id="codearea">
+press button
+ </code>
+</pre>
+    </div>
+  </body>
+  <link rel="stylesheet" href="railscasts.css">
+  <script src="highlight.ab.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+</html>
