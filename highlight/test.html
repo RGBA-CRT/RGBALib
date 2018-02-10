@@ -9,8 +9,50 @@
 	</style>
   </head>
   <body>
+  	<h1>ActiveBasic4 Syntax Highlighting Test</h1>
+  	<p argin="right">by RGBA_CRT 2018<br>
+  	using highlight.js<br>
+  	<a href="https://github.com/RGBA-CRT/RGBALib">github page</a>
+  	</p>
+  	
     <hr>
     <small>
+    <input type="button" value="Load NDS-MemoryExPack.abp" onclick="replace(`NDS-MemoryExPack.abp`)"/>
+    <input type="button" value="Load RGBALib.sbp" onclick="replace(`https://rgba-crt.github.io/RGBALib/RGBALib.sbp`)"/>
+    <script>
+	//from view-source:https://highlightjs.org/
+	//from https://developer.cybozu.io/hc/ja/articles/201850320-JavaScript%E3%81%A7%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E3%82%92%E3%81%99%E3%82%8B%E3%81%9F%E3%82%81%E3%81%AB%E6%B0%97%E3%82%92%E3%81%A4%E3%81%91%E3%82%8B%E3%81%93%E3%81%A8
+	
+	function replace(url){
+		const request = new XMLHttpRequest();
+		request.open("GET", url);
+		request.overrideMimeType("text/plain; charset=shift_jis");
+		request.addEventListener("load", (event) => {
+			var code = escapeHtml(event.target.responseText);
+			document.getElementById('codearea').innerHTML = code;
+		    var snippet = document.querySelector('#snippet pre code');
+		    hljs.highlightBlock(snippet);
+		});
+		request.send();
+	}
+	function escapeHtml(str) {
+	    str = str.replace(/&/g, '&amp;');
+	    str = str.replace(/</g, '&lt;');
+	    str = str.replace(/>/g, '&gt;');
+	    str = str.replace(/"/g, '&quot;');
+	    str = str.replace(/'/g, '&#39;');
+	    return str;
+	}
+	
+</script>
+    <div id="snippet">
+      <pre>
+ <code class="ab" id="codearea">
+press button
+ </code>
+</pre>
+    </div>
+    <hr>
     <pre>
  <code>
  #include<stdio.h>
@@ -131,40 +173,6 @@ Print "End"
 
  </code>
 </pre>
-    <input type="button" value="Load ?.sbp" onclick="replace()"/>
-    <script>
-	//from view-source:https://highlightjs.org/
-	//from https://developer.cybozu.io/hc/ja/articles/201850320-JavaScript%E3%81%A7%E3%82%BB%E3%82%AD%E3%83%A5%E3%82%A2%E3%81%AA%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E3%82%92%E3%81%99%E3%82%8B%E3%81%9F%E3%82%81%E3%81%AB%E6%B0%97%E3%82%92%E3%81%A4%E3%81%91%E3%82%8B%E3%81%93%E3%81%A8
-	
-	function replace(){
-		const request = new XMLHttpRequest();
-		request.open("GET", `NDS-MemoryExPack.abp`);
-		request.overrideMimeType("text/plain; charset=shift_jis");
-		request.addEventListener("load", (event) => {
-			var code = escapeHtml(event.target.responseText);
-			document.getElementById('codearea').innerHTML = code;
-		    var snippet = document.querySelector('#snippet pre code');
-		    hljs.highlightBlock(snippet);
-		});
-		request.send();
-	}
-	function escapeHtml(str) {
-	    str = str.replace(/&/g, '&amp;');
-	    str = str.replace(/</g, '&lt;');
-	    str = str.replace(/>/g, '&gt;');
-	    str = str.replace(/"/g, '&quot;');
-	    str = str.replace(/'/g, '&#39;');
-	    return str;
-	}
-	
-</script>
-    <div id="snippet">
-      <pre>
- <code class="ab" id="codearea">
-press button
- </code>
-</pre>
-    </div>
   </body>
   <link rel="stylesheet" href="railscasts.css">
   <script src="highlight.ab.js"></script>

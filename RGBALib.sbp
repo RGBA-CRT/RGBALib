@@ -86,7 +86,7 @@ Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(E
 	MessageBeep(MB_ICONHAND)
 	if ErrCode=0 Then
 		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName AS DWord,Title AS DWord),MB_ICONERROR Or Flag)
-		DBM(Text)
+	'	DBM(Text)
 	Else
 		Dim SysErrMes AS BytePtr
 		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, _
