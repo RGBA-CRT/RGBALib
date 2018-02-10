@@ -85,7 +85,7 @@ Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(E
 	SetForegroundWindow(hOwner)
 	MessageBeep(MB_ICONHAND)
 	if ErrCode=0 Then
-		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName,Title),MB_ICONERROR Or Flag)
+		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName AS DWord,Title AS DWord),MB_ICONERROR Or Flag)
 		DBM(Text)
 	Else
 		Dim SysErrMes AS BytePtr
@@ -172,8 +172,11 @@ Function Str2Dw(Data As BytePtr) As DWORD
 EndFunction
 
 Function Dw2Str(Data As DWORD) As String
-	Dim Str[4] As Byte
+	Dim Str[4] As Byte, i AS Long
 	memcpy(Str,VarPtr(Data),4)
+	For i = 0 To 3
+		if Str[i] < &H20 Then Str[i]=&H20
+	Next i
 	Str[4]=0
 	Dw2Str=MakeStr(Str)
 EndFunction
@@ -194,7 +197,7 @@ EndFunction
 '--------------
 
 
-Function UTF16ToSJIS(utf16 AS BytePtr) AS BytePtr
+Function UTF16ToSJIS(utf16 AS WordPtr) AS BytePtr
 	Dim l AS DWord
    ' Unicode‚©‚çShift-JIS‚É•ÏŠ·
    l=WideCharToMultiByte(CP_ACP, 0, utf16, -1, 0, 0, 0, 0)
@@ -204,7 +207,7 @@ End Function
 
 Function UTF8ToUnicode(utf8Str AS BytePtr) As BytePtr
 	Dim l As Long
-	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0)
+	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str As WordPtr, -1, NULL, 0)
 	UTF8ToUnicode=calloc(l*3)
 	MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, UTF8ToUnicode, l)
 End Function

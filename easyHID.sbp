@@ -9,7 +9,7 @@ Declare Function HidD_GetHidGuid Lib "hid.dll" (ByRef HidGuid As GUID) As Long
 Declare Function HidD_GetPreparsedData Lib "hid.dll" (HidDeviceObject As HANDLE, ByRef PreparsedData As VoidPtr) As Long
 Declare Function HidD_FreePreparsedData Lib "hid.dll" (ByRef PreparsedData As VoidPtr) As Long
 Declare Function HidD_GetAttributes Lib "hid.dll" (HidDeviceObject As HANDLE, ByRef Attributes As HIDD_ATTRIBUTES) As Long
-Declare Function HidD_GetProductString Lib "hid.dll" (HidDeviceObject As Long,buf AS DWord, length AS DWord) As Long
+Declare Function HidD_GetProductString Lib "hid.dll" (HidDeviceObject As HANDLE,buf AS BytePtr, length AS DWord) As Long
 
 Declare Function HidD_SetOutputReport Lib "hid.dll" (HidDeviceObject As HANDLE, buf AS BytePtr,length AS DWord) As Long
 Declare Function HidD_GetInputReport Lib "hid.dll" (HidDeviceObject As HANDLE, buf AS BytePtr,length AS DWord) As Long
@@ -19,9 +19,9 @@ Declare Function HidP_GetValueCaps  Lib "hid.dll" (ReportType AS HIDP_REPORT_TYP
 
 
 Declare Function SetupDiCreateDeviceInfoList Lib "setupapi.dll" (ByRef ClassGuid As GUID, hwndParent As Long) As Long
-Declare Function SetupDiDestroyDeviceInfoList Lib "setupapi.dll" (DeviceInfoSet As Long) As Long
-Declare Function SetupDiEnumDeviceInterfaces Lib "setupapi.dll" (DeviceInfoSet As Long, DeviceInfoData As Long, ByRef InterfaceClassGuid As GUID, MemberIndex As Long, ByRef DeviceInterfaceData As SP_DEVICE_INTERFACE_DATA) As Long
-Declare Function SetupDiGetClassDevs Lib "setupapi.dll" Alias "SetupDiGetClassDevsA" (ByRef ClassGuid As GUID, Enumerator As String, hwndParent As Long, Flags As Long) As Long
+Declare Function SetupDiDestroyDeviceInfoList Lib "setupapi.dll" (DeviceInfoSet As HANDLE) As Long
+Declare Function SetupDiEnumDeviceInterfaces Lib "setupapi.dll" (DeviceInfoSet As HANDLE, DeviceInfoData As Long, ByRef InterfaceClassGuid As GUID, MemberIndex As Long, ByRef DeviceInterfaceData As SP_DEVICE_INTERFACE_DATA) As Long
+Declare Function SetupDiGetClassDevs Lib "setupapi.dll" Alias "SetupDiGetClassDevsA" (ByRef ClassGuid As GUID, Enumerator As String, hwndParent As Long, Flags As Long) As HANDLE
 Declare Function SetupDiGetDeviceInterfaceDetail Lib "setupapi.dll" Alias "SetupDiGetDeviceInterfaceDetailA" (DeviceInfoSet As HANDLE, ByRef DeviceInterfaceData As SP_DEVICE_INTERFACE_DATA, DeviceInterfaceDetailData As *SP_DEVICE_INTERFACE_DETAIL_DATA, DeviceInterfaceDetailDataSize As DWord, ByRef RequiredSize As Long, DeviceInfoData As Long) As Long
 Declare Function CreateEvent Lib "kernel32" Alias "CreateEventA" (lpEventAttributes As Long, bManualReset As Long, bInitialState As Long, lpName As String) As Long
 Declare Function GetOverlappedResult Lib "kernel32.dll" (hFile As Word, ByRef lpOverlapped As OVERLAPPED, ByRef lpNumberOfBytesTransferred As Long, bWait As BOOL) As Word
@@ -407,5 +407,5 @@ End Sub
 Function EasyHID_getProductStringA(handle AS HANDLE) AS BytePtr
 	Dim tmp[EH_GPSA_LENGTH] AS Byte
 	HidD_GetProductString(handle,tmp,EH_GPSA_LENGTH)
-	EasyHID_getProductStringA = UTF16ToSJIS(tmp)
+	EasyHID_getProductStringA = UTF16ToSJIS(tmp As WordPtr)
 End Function
