@@ -1,6 +1,6 @@
 'RGBA_CRT's Librarys
 #include <RGBADef.sbp>
-#include <EasyHID.sbp>
+'#include <EasyHID.sbp>
 /*  Todo : 
 		HTTP系をクラスに
 */
@@ -697,11 +697,11 @@ EndFunction
 Const MAXDWORD=&HFFFFFFFF
 Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
 	Dim ct AS COMMTIMEOUTS
-	ct.ReadIntervalTimeout=MAXDWORD		'連続受信タイムアウト
-	ct.ReadTotalTimeoutMultiplier=MAXDWORD
+	ct.ReadIntervalTimeout=100		'連続受信タイムアウト
+	ct.ReadTotalTimeoutMultiplier=10
 	ct.ReadTotalTimeoutConstant=TimeOut	'Constant+Multiplier*バイト数＝タイムアウト
 	ct.WriteTotalTimeoutConstant=TimeOut
-	ct.WriteTotalTimeoutMultiplier=MAXDWORD
+	ct.WriteTotalTimeoutMultiplier=10
 
 	SetCommTimeouts(hComPortPort,VarPtr(ct))
 EndFunction

@@ -87,6 +87,8 @@ Declare Function ClearCommError Lib "kernel32" Alias "ClearCommError" ( hFile As
 Declare Function SetCommTimeouts Lib "kernel32.dll" (hFile AS HANDLE,lpCommTimeouts AS *COMMTIMEOUTS) AS Byte
 declare Function PurgeComm Lib "kernel32.dll" ( hFile As Long,   dwFlags As Long) As Long
 Declare Function QueryDosDevice Lib "kernel32" Alias "QueryDosDeviceA" ( lpDeviceName As BytePtr,  lpTargetPath As BytePtr,  ucchMax As DWord) As DWord
+Declare Function SetupComm Lib "kernel32" Alias "SetupComm" (hFile As HANDLE, dwInQueue As Long, dwOutQueue As Long) As BOOL
+Declare Function EscapeCommFunction Lib "kernel32" Alias "EscapeCommFunction" (handle As HANDLE, nFunc As Long) As BOOL
 
 Type COMMTIMEOUTS
 	ReadIntervalTimeout AS DWord
@@ -122,6 +124,17 @@ End Type
 
 Const PURGE_TXCLEAR = &H4 '送信バッファクリア
 Const PURGE_RXCLEAR = &H8 '受信バッファクリア
+Const PURGE_TXABORT	= &H00000001
+Const PURGE_RXABORT	= &H00000002
+Const SETXOFF	= &H00000001
+Const SETXON	= &H00000002
+Const SETRTS	= &H00000003
+Const CLRRTS	= &H00000004
+Const SETDTR	= &H00000005
+Const CLRDTR	= &H00000006
+Const RESETDEV	= &H00000007
+Const SETBREAK	= &H00000008
+Const CLRBREAK	= &H00000009
 
 Const NOPARITY	= &H00000000
 Const SP_STOPBITS	= &H00000008
