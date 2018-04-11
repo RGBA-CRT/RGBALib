@@ -1180,6 +1180,10 @@ Public
 		getHandle=hFile
 	EndFunction
 
+	Sub setHandle(_handle AS HANDLE)
+		hFile=_handle
+	End Sub
+	
 	Function getPath() AS BytePtr
 		getPath=path.GetPath()
 	EndFunction
