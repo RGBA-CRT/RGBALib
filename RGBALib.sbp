@@ -653,11 +653,12 @@ EndSub
 Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS DWORD
 	Dim Tmp[&H20] As Byte,i As Long,Adr As DWORD
 	
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED)
-	if VAdr=0 Or noHeader=FALSE then Print " ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  0123456789ABCDEF "
+	'SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED)
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), &H0070)
+	if VAdr=0 Or noHeader=FALSE then PrintPtr( ex" ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  0123456789ABCDEF \n")
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
 	Do
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE  OR 4 OR 3 )
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), &H10  OR 4 OR 3 )
 		printf("%08X  ",Adr+VAdr)
 		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
 '		Print " ";
@@ -668,11 +669,11 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 				printf("%02X ",Data[Adr+i])
 			EndIf
 		Next i
-		Print " ";
+		PrintPtr(" ")
 		For i=0 To &H0F
 			if Adr+i=>Size then Goto *EXIT_LOOP
 			if Data[Adr+i]<&H20 or Data[Adr+i]=&HFF then 
-				Print ".";
+				PrintPtr(".")
 			Else
 				printf("%1c",Data[Adr+i])
 			EndIf
@@ -680,10 +681,10 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 		i=0
 		Adr+=&H10
 		if Adr+i=>Size then Goto *EXIT_LOOP
-		Print
+		PrintPtr(ex"\n")
 	Loop
 *EXIT_LOOP
-	Print
+	PrintPtr(ex"\n")
 '	Print Hex$(Adr*&H10+i)+"="+Hex$(Size)
 	Dump=Adr
 EndFunction
@@ -1328,6 +1329,10 @@ Public
 	Function getString() AS String
 		getString=MakeStr(ptr)
 	EndFunction
+
+	Sub StringClass()
+		ptr=NULL
+	EndSub
 
 	Sub ~StringClass()
 		freeStr()
