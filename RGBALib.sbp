@@ -689,6 +689,16 @@ Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS 
 	Dump=Adr
 EndFunction
 
+Enum PRINT_HIGHLIGHT_COLOR
+	PH_ERROR   = &H000C
+	PH_SUCCESS = &H000A
+End Enum
+
+Sub colorPrint(color As DWord,str AS BytePtr)
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE) , color )
+	PrintPtr(str)
+	SetConsoleColor(CC_DEFAULT)
+End Sub
 
 
 

@@ -99,9 +99,9 @@ Type COMMTIMEOUTS
 EndType
 
 Type COMSTAT
-    fBitFields As Long
-    cbInQue    As Long
-    cbOutQue   As Long
+    fBitFields As DWord
+    cbInQue    As DWord
+    cbOutQue   As DWord
 End Type
 
 Type DCB_SETTING
