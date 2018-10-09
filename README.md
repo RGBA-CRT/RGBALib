@@ -13,6 +13,9 @@ GetOpenFileName/GetSaveFileNameのバグも治ります。
 ## highlight.js for ActiveBasic
 ABをハイライトする。詳しくはhighlightディレクトリへ。
 
+## ab2c
+AB -> C を手助け
+
 ## testprogram
 ABで書いたテストプログラム集。ゴミ溜め。コピペあり。黒歴史あり。読みやすく書いていない。
 
