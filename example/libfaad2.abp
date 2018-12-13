@@ -1,0 +1,261 @@
+'libffaad2 example
+'esp_adderの利用例
+'esp_adderをコメントアウトすると、スタックがずれていく様子が見れる
+
+Type NeAACDecFrameInfo
+	ByteSec As DWORD
+	Samples As Dword
+	Channel As Byte
+	Error	As Byte
+	Samplingrate As DWORD
+	sbr	As Byte
+	object_type As Byte
+	header_type As Byte
+	num_front_ch As Byte
+	num_side_ch As Byte
+	num_back_ch As Byte
+	num_lfe_ch As Byte
+	channel_position[63] As Byte
+	ps As Byte
+EndType
+
+Type NeAACDecConfiguration
+	defObjectType As Byte
+	defSampleRate As DWORD
+	outputFormat As Byte
+	downMatrix As Byte
+	useOldADTSFormat As Byte
+	dontUpSampleImplicitSBR As Byte
+EndType
+Const LC_DEC_CAP           =(1<<0) /* Can decode LC */
+Const MAIN_DEC_CAP         =(1<<1) /* Can decode MAIN */
+Const LTP_DEC_CAP          =(1<<2) /* Can decode LTP */
+Const LD_DEC_CAP           =(1<<3) /* Can decode LD */
+Const ERROR_RESILIENCE_CAP =(1<<4) /* Can decode ER */
+Const FIXED_POINT_CAP      =(1<<5) /* Fixed point */
+
+Const MAIN      = 1
+Const LC        = 2
+Const SSR       = 3
+Const LTP       = 4
+Const HE_AAC    = 5
+Const ER_LC     =17
+Const ER_LTP    =19
+Const LD        =23
+Const DRM_ER_LC =27 /* special object type for DRM */
+
+Const FAAD_FMT_16BIT  =1
+Const FAAD_FMT_24BIT  =2
+Const FAAD_FMT_32BIT  =3
+Const FAAD_FMT_FLOAT  =4
+Const FAAD_FMT_FIXED  =FAAD_FMT_FLOAT
+Const FAAD_FMT_DOUBLE =5
+
+Const MAX_CHANNELS = 6 
+Const FAAD_MIN_STREAMSIZE = 768 /* 6144 bits/channel */
+
+
+Declare Function NeAACDecOpen Lib "libfaad2.dll" () As VoidPtr
+Declare Sub NeAACDecClose Lib "libfaad2.dll" (faacHandle As HANDLE)
+Declare Function NeAACDecInit Lib "libfaad2.dll" (hDecoder As HANDLE, buffer As BytePtr,buf_size As DWORD,ByRef samplingrate As DWORD,ByRef ch As Byte) As Long
+Declare Function NeAACDecDecode Lib "libfaad2.dll" (hDecoder As HANDLE, hInfo As *NeAACDecFrameInfo,buffer As BytePtr,buffer_size As DWORD) As BytePtr
+Declare Function NeAACDecGetCurrentConfiguration Lib "libfaad2.dll" (faacHandle As HANDLE) As *NeAACDecConfiguration
+Declare Function NeAACDecSetConfiguration Lib "libfaad2.dll" (faacHandle As HANDLE,config As *NeAACDecConfiguration) As Byte
+Declare Function NeAACDecGetErrorMessage Lib "libfaad2.dll" (errcode As Byte) As BytePtr
+
+#console
+#include <EasyIO.sbp>
+#include <abcdecl.sbp>
+Print "[AAC Decoder faad2 test Programm] [GPL] RGBA_CRT 2015"
+
+/*マクロ定義*/
+Const AAC_CMAXHANNELS =	8
+Const AAC_READSIZE=(FAAD_MIN_STREAMSIZE * AAC_CMAXHANNELS)
+
+/*ローカル管理変数*/
+Dim hFile As HANDLE
+Dim hOut As HANDLE
+Dim lFileSize As Long
+Dim cBuffer As BytePtr
+cBuffer=calloc(AAC_READSIZE*2)
+
+/*FADD制御用管理変数*/
+Dim hDec As HANDLE
+Dim mFrameInfo AS NeAACDecFrameInfo
+Dim pConfig As *NeAACDecConfiguration
+Dim Srate As DWORD
+Dim channels AS Byte
+Dim lSpendbyte As Long
+Dim mReadSize As DWORD
+Dim DecBuf As BytePtr
+Dim iCnt As Long
+dim dwAB As DWORD
+Dim Ret As Long
+
+'hFile=OpenFile("C:\Users\RGBA_CRT\Desktop\SUPER_test3_AAC-LTP_v4_Stereo_VBR_64kbps_48000Hz.AAC",GENERIC_READ)
+'hFile=OpenFile("C:\Users\RGBA_CRT\Desktop\MediaCoder_test1_HE-AAC_v4_Stereo_VBR_64kbps_44100Hz.m4a",GENERIC_READ)
+hFile=OpenFile("D:\My-File\Data\Programs\ActiveBasic\SoundPlayer\DecoderTestProgram\faad2\faadGUI\test.bwav_1.aac",GENERIC_READ)
+if hFile=-1 then Print "OPEN ERROR":end
+lFileSize=GetFileSize(hFile,0)
+
+Ret = ReadFile(hFile,cBuffer ,AAC_READSIZE,VarPtr(dwAB),ByVal NULL)
+mReadSize = dwAB
+if Ret= FALSE Then Print "HEAD LOAD ERROR"
+
+Print ">>>>>> ESP : "+Hex$(esp_get())
+
+/*お約束*/
+hDec = NeAACDecOpen()
+
+/*デフォのコンフィグレーションを読み込む*/
+pConfig = NeAACDecGetCurrentConfiguration(hDec): esp_adder(1)
+
+/*オブジェクトタイプに0を選択するのはMPEG-4用のメンバらしいので*/
+pConfig->defObjectType = 0
+
+/*お約束の16bitPCMフォーマットで出力させる*/
+pConfig->outputFormat = FAAD_FMT_16BIT
+
+/*上記の設定をふまえて、再コンフィグレーション*/
+NeAACDecSetConfiguration(hDec, pConfig)	:esp_adder(2)
+
+/*初回処理。ついでに解析までしてくれるようです*/
+lSpendbyte = NeAACDecInit(hDec, cBuffer, mReadSize,Srate, channels)	:esp_adder(5)
+if lSpendbyte < 0 then
+	/*エラー処理*/
+	Print "Init Error"
+	NeAACDecClose(hDec)
+	CloseHandle(hFile)
+	Sleep(-1)
+Endif
+SetFilePointer(hFile,lSpendbyte,0,FILE_BEGIN)
+if lSpendbyte=0 then lSpendbyte=AAC_READSIZE
+'printf("This file Samplerate:%d Channnel(s):%d\n",ulSamplerate,ubChannels);
+Print "SRATE="+Str$(Srate)
+Print "CHANL="+Str$(channels)
+
+Print ">>>>>> ESP : "+Hex$(esp_get())
+
+Input "[PUSH ENTER TO DECODE]",hOut
+
+/*音声デバイス初期化*/
+hOut=OpenFile("D:\AACTest.bwav",GENERIC_WRITE)
+/*ファイル終端までReadしっぱなし*/
+Do			
+	/*余ったAAVフレームを先頭部分にコピーして続けてReadする*/
+	memcpy(cBuffer,VarPtr(cBuffer[lSpendbyte]),(AAC_READSIZE - lSpendbyte))
+	Ret = ReadFile(hFile,cBuffer + (AAC_READSIZE-lSpendbyte), lSpendbyte,VarPtr(dwAB),ByVal NULL)
+	if Ret = FALSE Then
+		Print "LOAD ERROR"
+		ExitDo
+	Elseif Ret=TRUE And dwAB=0 then
+		Print "[EOF]"
+		ExitDo
+	Endif
+
+	mReadSize += dwAB
+
+	lSpendbyte = 0
+
+	/*デコード処理*/
+	DecBuf = NeAACDecDecode(hDec, VarPtr(mFrameInfo), cBuffer, mReadSize)	: esp_adder(4)
+
+	/*エラー判定*/
+	if mFrameInfo.Error>0 Then
+		Print "ERROR:";
+		Print mFrameInfo.Error
+		Print MakeStr(NeAACDecGetErrorMessage(mFrameInfo.Error))
+		ExitDo
+	Endif
+
+	/*未デコードフレーム残量を取得*/
+	lSpendbyte += mFrameInfo.ByteSec
+	mReadSize -= mFrameInfo.ByteSec
+
+	/*ここまでくればPCMを出力しても良い*/
+	Print ".";
+	if OutFile(hOut,DecBuf,mFrameInfo.Samples * channels)=-2 Then
+		Print "WRITE ERROR"
+		ExitDo
+	Endif
+Loop
+
+
+Print ">>>>>> ESP : "+Hex$(esp_get())
+
+/*開いたら、閉じる*/
+NeAACDecClose(hDec)
+CloseHandle(hFile)
+CloseHandle(hOut)
+Sleep(-1)
+
+/*Dim hAAC As HANDLE
+Dim conf As *NeAACDecConfiguration
+Dim hFile As HANDLE,fbuf As BytePtr
+Dim sample As DWORD,ch AS Byte
+Dim sbuf As BytePtr,hInfo As NeAACDecFrameInfo
+Dim hOut As HANDLE
+'cap=NeAACDecGetCapabilities()
+hAAC=NeAACDecOpen()
+Print "faad handle = 0x"+Hex$(hAAC)
+
+
+hFile=OpenFile("C:\Users\RGBA_CRT\Desktop\Level Theme 1 - SilverSurfer_1.aac",GENERIC_READ)
+if hFile=-1 then Print "FILE OPEN ERROR.":END
+fbuf=calloc(1024*10)
+if LoadFile(hFile,fbuf,FAAD_MIN_STREAMSIZE*MAX_CHANNELS)=-2 then Print "HEADER LOAD ERROR"
+Print "Init:";
+Print NeAACDecInit(hAAC,fbuf,FAAD_MIN_STREAMSIZE*MAX_CHANNELS,sample,ch)
+Print "Sampling:"+Str$(sample)
+Print "Channnel:"+Str$(ch)
+
+conf=NeAACDecGetCurrentConfiguration(hAAC)
+Print "conf adr = 0x"+Hex$(conf)
+'conf->defObjectType=LC
+conf->defSampleRate=sample
+conf->outputFormat=FAAD_FMT_16BIT
+conf->downMatrix=1
+
+'conf->useOldADTSFormat=0
+NeAACDecSetConfiguration(hAAC,conf)
+
+dim size as DWORD
+size=FAAD_MIN_STREAMSIZE*MAX_CHANNELS
+SetFilePointer(hFile,0,0,FILE_BEGIN)
+'hInfo=calloc(sizeof(NeAACDecFrameInfo)+1)
+Print "hInfo:0x"+Hex$(VarPtr(hInfo))
+Print "sizeof frameinfo="+Str$(sizeof(NeAACDecFrameInfo))
+Print "sizeof Decconfig="+Str$(sizeof(NeAACDecConfiguration))
+input ">",conf
+
+hOut=OpenFile("d:\aac.bwav",GENERIC_WRITE)
+Do
+	if LoadFile(hFile,fbuf,FAAD_MIN_STREAMSIZE)=<-1 then Print "LOAD ERROR":Exitdo
+
+	sbuf=NeAACDecDecode(hAAC,VarPtr(hInfo),fbuf,FAAD_MIN_STREAMSIZE)
+'	sbuf=NeAACDecDecode(hAAC,VarPtr(hInfo),0,FAAD_MIN_STREAMSIZE*MAX_CHANNELS)
+
+	Print "Return:0x"+Hex$(sbuf)
+
+	if hInfo.Error=0 And hInfo.Samples > 0 then
+		Print "Sucsess"
+		Print "srate:";
+		Print hInfo.Samples
+		Print "err  :";
+		Print hInfo.Error
+		Print "data :";
+		Print sbuf[0]
+		if OutFile(hOut,sbuf,hInfo.Samples*2) = FALSE Then Print "WRITE ERROR"
+	Elseif hInfo.Error<>0 then
+		Print "Decode Error!"
+		Print "Err."+Str$(hInfo.Error)
+		Print MakeStr(NeAACDecGetErrorMessage(hInfo.Error))
+	'	ExitDo
+	endif
+	'input ">",conf
+Loop
+CloseHandle(hFile)
+CloseHandle(hOut)
+free(fbuf)
+NeAACDecClose(hAAC)
+Sleep(-1)*/

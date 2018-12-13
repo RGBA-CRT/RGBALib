@@ -24,6 +24,20 @@ Declare Function PathFindExtension Lib "SHLWAPI.DLL" Alias "PathFindExtensionA" 
 Declare Function PathRemoveFileSpec Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecA" (pszPath As BytePtr) As Long
 Declare Function PathRenameExtension Lib "SHLWAPI.DLL" Alias "PathRenameExtensionA" (pszPath As BytePtr,newExt AS BytePtr) As Long
  
+Declare Function PathUnquoteSpacesW Lib "SHLWAPI.DLL" Alias "PathUnquoteSpacesW" (pszPath As WordPtr) As Long
+Declare Function PathRemoveBlanksW Lib "SHLWAPI.DLL" Alias "PathRemoveBlanksW" (pszPath As WordPtr) As Long
+Declare Function PathFileExistsW Lib "SHLWAPI.DLL" Alias "PathFileExistsW" (pszPath As BytePtr) As Long
+Declare Function PathAddBackslashW Lib "SHLWAPI.DLL" Alias "PathAddBackslashW" (pszPath As BytePtr) As Long
+Declare Function PathCompactPathExW Lib "SHLWAPI.DLL" Alias "PathCompactPathExW" (pszOut As BytePtr, pszSrc As BytePtr, cchMax As Long, dwFlags As Long) As Long
+Declare Function PathIsDirectoryW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryW" (pszPath As BytePtr) As Long
+Declare Function PathIsDirectoryEmptyW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryEmptyW" (pszPath As BytePtr) As Long
+Declare Sub PathStripPathW Lib "SHLWAPI.DLL" Alias "PathStripPathW" (pszPath As BytePtr)
+Declare Sub PathUndecorateW Lib "SHLWAPI.DLL" Alias "PathUndecorateW" (pszPath As BytePtr)
+Declare Function PathFindFileNameW Lib "SHLWAPI.DLL" Alias "PathFindFileNameW" (pszPath As BytePtr) As BytePtr
+Declare Function PathFindExtensionW Lib "SHLWAPI.DLL" Alias "PathFindExtensionW" (pszPath As BytePtr) As BytePtr
+Declare Function PathRemoveFileSpecW Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecW" (pszPath As BytePtr) As Long
+Declare Function PathRenameExtensionW Lib "SHLWAPI.DLL" Alias "PathRenameExtensionW" (pszPath As BytePtr,newExt AS BytePtr) As Long
+
 Declare Function MakeSureDirectoryPathExists Lib "imagehlp" (lpPath As BytePtr) As Long
 
 Declare Function SHGetSpecialFolderPath Lib "SHELL32" Alias "SHGetSpecialFolderPathA" (hwndOwner As Long, lpszPath As BytePtr, nFolder As Long, fCreate As Long) As Long

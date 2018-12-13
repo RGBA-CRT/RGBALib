@@ -1,6 +1,6 @@
 'RGBA_CRT's Librarys
 #include <RGBADef.sbp>
-'#include <EasyHID.sbp>
+#include <EasyIO.sbp>
 /*  Todo : 
 		HTTP系をクラスに
 */
@@ -197,12 +197,20 @@ EndFunction
 '--------------
 
 
-Function UTF16ToSJIS(utf16 AS WordPtr) AS BytePtr
+Function Wide2Ansi(utf16 AS WordPtr) AS BytePtr
+'Function UTF16ToSJIS(utf16 AS WordPtr) AS BytePtr
 	Dim l AS DWord
    ' UnicodeからShift-JISに変換
    l=WideCharToMultiByte(CP_ACP, 0, utf16, -1, 0, 0, 0, 0)
-   UTF16ToSJIS=calloc(l)
-   WideCharToMultiByte(CP_ACP, 0, utf16, -1, UTF16ToSJIS, l, 0, 0)
+   Wide2Ansi=calloc(l)
+   WideCharToMultiByte(CP_ACP, 0, utf16, -1, Wide2Ansi, l, 0, 0)
+End Function
+
+Function Ansi2Wide(ansi AS BytePtr) AS WordPtr
+	Dim l As Long
+	l=MultiByteToWideChar(CP_ACP, 0, ansi, -1, NULL, 0)
+	Ansi2Wide=calloc(l*3)
+	MultiByteToWideChar(CP_ACP, 0, ansi, -1, Ansi2Wide, l)
 End Function
 
 Function UTF8ToUnicode(utf8Str AS BytePtr) As BytePtr
@@ -330,6 +338,18 @@ Function DelDQ(Text As BytePtr) As BytePtr
 	txlen=lstrlen(tmp)
 	DelDQ=calloc(txlen+2)
 	memcpy(DelDQ,tmp,txlen+1)
+EndFunction
+
+Function DelDQW(Text As WordPtr) As WordPtr
+	Dim tmp[MAX_PATH] AS Word
+	lstrcpyW(tmp,Text)
+	PathRemoveBlanksW(tmp)
+	PathUnquoteSpacesW(tmp)
+
+	Dim txlen AS DWord
+	txlen=lstrlenW(tmp)
+	DelDQW=calloc(txlen*2+4)
+	memcpy(DelDQW,tmp,txlen*2+2)
 EndFunction
 
 'LF,CR -> CRLF	戻り値は別メモリなので各自開放すること
@@ -471,7 +491,6 @@ Type DLL_FUNCTION_CELL
 	alias AS BytePtr
 EndType
 
-'TST_DecoderDllLoaderへ改名、Decodersフォルダ内にデコーダを格納するように変更。↓の関数はRGBALibに移動
 Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
 	Dim hDll AS HINSTANCE
 	Dim errMes AS BytePtr
@@ -518,31 +537,84 @@ Sub FreeAsm(func As VoidPtr)
 	VirtualFree(func, 0, MEM_DECOMMIT or MEM_RELEASE) '追加
 End Sub
 
-/*
- * cdeclの関数呼び出しができる関数
- * 引数 ：FuncAdr	-> CDECL関数のアドレス
- *		：params	-> 引数（DWord）のリスト
- * 		：nParam	-> 引数の個数
- * 戻り値はその関数の戻り値
- * 機械語のソースは別ファイル参照
-*/
-TypeDef Type_cdeclLoader = *Function(FuncAdr AS VoidPtr , params AS *DWord,nParam AS Byte) As DWord
-Function Load_cdeclLoader() AS Type_cdeclLoader
-	Dim _cdeclLoader_bin[ELM(&H8F)]=[
-	&H55,&H89,&HE5,&H83,&HEC,&H20,&H8A,&H45,&H10,&H8B,&H4D,&H0C,&H8B,&H55,&H08,&H88,&H45,
-	&HFB,&H89,&H4D,&HF4,&H89,&H55,&HF0,&H0F,&HB6,&H4D,&HFB,&HC1,&HE1,&H02,&H89,&H4D,&HEC,
-	&H83,&H7D,&HF4,&H00,&H0F,&H84,&H39,&H00,&H00,&H00,&H0F,&HB6,&H45,&HFB,&H89,&H45,&HE8,
-	&H83,&H7D,&HE8,&H00,&H0F,&H84,&H23,&H00,&H00,&H00,&H8B,&H45,&HE8,&H83,&HE8,&H01,&H8B,
-	&H4D,&HF4,&H8B,&H04,&H81,&H89,&H45,&HE4,&HFF,&H75,&HE4,&H89,&H45,&HFC,&H8B,&H45,&HE8,
-	&H83,&HC0,&HFF,&H89,&H45,&HE8,&HE9,&HD3,&HFF,&HFF,&HFF,&HE9,&H00,&H00,&H00,&H00,&H90,
-	&HFF,&H55,&HF0,&H03,&H65,&HEC,&H89,&H45,&HE0,&H89,&H45,&HFC,&H8B,&H45,&HE0,&H83,&HC4,
-	&H20,&H5D,&HC2,&H0C,&H00] As Byte
 
-	'↑を実行可能領域へ転送
-	Load_cdeclLoader=VirtualAlloc(NULL, &H8F, MEM_COMMIT, PAGE_EXECUTE_READWRITE)	
-	if Load_cdeclLoader=0 Then ExitFunction
-	memcpy(Load_cdeclLoader,_cdeclLoader_bin,&H8F)
+/* ==========================================
+ * arg() : 可変引数 -> 配列化関数
+ * ==========================================
+ *
+ * 	ActiveBasicの可変引数は、省略部分を自動でゼロをセットするようになっている。
+ *  printf的な関数を実装するときは省略可能引数を大量に並べる必要があるが、
+ *  引数が1つであれ4つであれ、ゼロをセットする命令が大量に並ぶことになる。
+ *  argは引数の数分だけ関数を用意することでゼロをセットする命令を削減することができる。
+ *  詳しくは逆汗して
+ *  ゼロをセットする処理よりこっちの方式のほうがメモリアクセスが多いので遅いかもしれない
+ */
+
+'スタックがそのまま配列になっているので、_argにコピーする
+'スレッドセーフじゃないけど、滅多に使わないので現状このままで　
+Typedef ARGT = Long
+Dim _arg[15] As ARGT
+
+Function arg() As *ARGT
+	arg=_arg
 End Function
+
+Function arg(a As ARGT) As *ARGT
+	_arg[0]=a
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT) As *ARGT
+	_arg[0]=a
+	_arg[1]=b
+	arg=_arg
+End Function
+
+Function arg(a As ARGT, b As ARGT, c As ARGT ) As *ARGT
+	memcpy(_arg,VarPtr(a),12)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT, b As ARGT, c As ARGT, d As ARGT) As *ARGT
+	memcpy(_arg,VarPtr(a),16)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT, b As ARGT, c As ARGT, d As ARGT,e As ARGT ) As *ARGT
+	memcpy(_arg,VarPtr(a),20)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT) As *ARGT
+	memcpy(_arg,VarPtr(a),24)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT,g As ARGT) As *ARGT
+	memcpy(_arg,VarPtr(a),28)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT,g As ARGT,h As ARGT ) As *ARGT
+	memcpy(_arg,VarPtr(a),32)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT,g As ARGT,h As ARGT ,i As ARGT) As *ARGT
+	memcpy(_arg,VarPtr(a),36)
+	arg=_arg
+End Function
+
+Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT ,g As ARGT ,h As ARGT ,i As ARGT ,j As ARGT ,k As ARGT ,l As ARGT ,m As ARGT ,n As ARGT) As *ARGT
+	memcpy(_arg,VarPtr(a),60)
+	arg=_arg
+End Function
+
+Dim _print_buf[1024] As Byte,_print_len AS Long
+Sub printf2(format AS BytePtr,arglist AS *ARGT)
+	_print_len=wvsprintf(_print_buf,format,arglist)
+	PrintPtr(_print_buf,_print_len)
+Endsub
 
 '------------------------------
 '		Console library
@@ -626,8 +698,9 @@ Sub SetConsoleIcon(IconID AS DWord)
 	SendMessage(GetConsoleWndHandle(),WM_SETICON,ICON_SMALL,LoadImage(GetModuleHandle(0),IconID As BytePtr,IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR) As Long)
 EndSub
 
-Const PRINTF_BUFFER = 1025
-Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
+Const PRINTF_BUFFER = 1024
+Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,
+	f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
 	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
 	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	PrintPtr(Buf,ret)
@@ -884,7 +957,20 @@ Function CountChar(str AS BytePtr,chara AS Byte) AS Long
 	CountChar=C
 End Function
 
+Function GetOsMajorVersion() AS Long
+	Dim Ver As OSVERSIONINFO
+	Ver.dwOSVersionInfoSize=sizeof(OSVERSIONINFO)
+	GetVersionEx(Ver)
+	GetOsMajorVersion=Ver.dwMajorVersion
+End Function
 
+Function IsWin9x() AS Long
+	if GetOsMajorVersion() = 4 Then
+		IsWin9x=TRUE
+	Else
+		IsWin9x=FALSE
+	End If
+End Function
 
 
 
@@ -892,6 +978,411 @@ End Function
 '------------------------------
 '		Class library
 '------------------------------
+Class File
+Protected
+	hFile As HANDLE
+	path AS FilePath
+Public
+	Function _openFile(_Mode AS DWORD) AS BOOL
+		Dim CreateMode AS Dword
+		If _Mode=GENERIC_READ then
+			CreateMode=OPEN_EXISTING
+		Elseif  _Mode=GENERIC_WRITE then
+			CreateMode=CREATE_ALWAYS
+		Else
+			CreateMode=OPEN_EXISTING
+		EndIf
+
+		hFile=CreateFile(path.GetPath(), _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
+		If hFile=INVALID_HANDLE_VALUE then 
+			_openFile = FALSE
+			hFile=0
+		Else
+			_openFile = TRUE
+		EndIf
+	EndFunction
+
+	
+	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS BOOL
+		path.SetPath(inPath)
+		openFile=_openFile(_Mode)
+	End Function
+	
+/*	Function openFileW(inPath As WordPtr,_Mode AS DWORD) AS BOOL
+		path.SetPath(inPath)
+		openFileW=_openFile(_Mode)
+	End Function
+*/
+	Function read(dest AS BytePtr,size As DWord) AS Long
+		Dim dwAB As BytePtr
+		read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
+		If read=TRUE And dwAB=0 then
+			read=-1 As Long	'EOF
+		ElseIf read=FALSE then
+			read=-2 As Long
+		Else
+			read=dwAB AS Long
+		EndIf
+	End Function
+
+	Function readDw() AS Long
+		read(VarPtr(readDw),sizeof(DWord))
+	End Function
+
+	Function write(source AS BytePtr,size As DWord) AS Long
+		WriteFile(hFile,source,size,VarPtr(write),ByVal NULL)
+	End Function
+
+	Function getFilePtr() AS DWord
+		getFilePtr=SetFilePointer(hFile,0,0,FILE_CURRENT)
+	EndFunction
+
+	'up to 4GB
+	Sub setFilePtr(fp AS DWord)
+		'SetFilePointerのlpDistanceToMoveHighをNULLにすると下位がLong扱いになる
+		'なので適当な変数をHighにセットしておけば下位はDWord扱いになる
+		Dim high AS Long
+'		SetLastError(0)
+		SetFilePointer(hFile,fp,VarPtr(high),FILE_BEGIN)
+	End Sub
+
+	Sub addFilePtr(fp AS DWord)
+		SetFilePointer(hFile,fp,0,FILE_CURRENT)
+	End Sub
+
+	Function length() AS Long
+		if hFile = 0 Then length=-1 : Exitfunction
+		length=GetFileSize(hFile,NULL)
+	EndFunction
+
+	Function getHandle() AS HANDLE
+		getHandle=hFile
+	EndFunction
+
+	Sub setHandle(_handle AS HANDLE)
+		hFile=_handle
+	End Sub
+	
+	Function getPath() AS BytePtr
+		getPath=path.GetPath()
+	EndFunction
+
+	Sub close()
+		CloseHandle(hFile)
+		hFile=0
+		path.Destroy()
+	End Sub
+End Class
+
+
+'ファイルパス用クラス
+Class FilePathW
+Private
+	pathStr AS StringClassW
+	nullidx AS DWord
+	separator AS Word	' \
+Public
+
+	Sub FilePathW()
+		setPathSeparator(ex"\\\0")
+	End Sub
+
+	Sub setPathSeparator(newSeparator as WordPtr)
+		separator=newSeparator[0]
+	End Sub
+
+	Sub setPathSeparatorChar(newSeparator as Word)
+		separator=newSeparator
+	End Sub
+
+	'ファイルかフォルダかはわからないけどパスがセットされた
+	Sub SetPath(path As WordPtr)
+		'ダブルクォーテーションを削除しつつメモリ確保＆格納
+		pathStr.set(DelDQW(path))
+		nullidx=pathStr.length()
+	EndSub
+
+	Sub SetPathA(path AS BytePtr) 
+		Dim pathW AS WordPtr
+		pathW=Ansi2Wide(path)
+		SetPath(pathW)
+		free(pathW)
+	End Sub
+
+	Sub FileDlgSetupW(ofn As *OPENFILENAME,hWnd AS HWND,opt As DWord,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr)
+		'ファイルオープン構造体の初期化
+		ofn->lStructSize = sizeof(OPENFILENAME)
+		ofn->hwndOwner = hWnd
+		ofn->lpstrFilter = extList
+		ofn->nFilterIndex = 0
+		ofn->nMaxFile = MAX_PATH
+		ofn->Flags=opt
+		ofn->lpstrDefExt=defExt
+		ofn->lpstrFile = calloc(MAX_PATH*2+4)
+		if defFileName<>NULL Then _
+			lstrcpyW(ofn->lpstrFile,defFileName)
+	End Sub
+
+	Function SaveFileDlg(hWnd AS HWND,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr) AS Long
+		Dim ofn AS OPENFILENAME
+		FileDlgSetupW(VarPtr(ofn),hWnd,OFN_OVERWRITEPROMPT,defFileName,defExt,extList)
+		GetSaveFileNameW(ofn)
+		SetPath(ofn.lpstrFile)
+		free(ofn.lpstrFile)
+	End Function
+
+	Function OpenFileDlg(hWnd AS HWND,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr) AS Long
+		Dim ofn AS OPENFILENAME
+		FileDlgSetupW(VarPtr(ofn),hWnd,OFN_OVERWRITEPROMPT,defFileName,defExt,extList)
+		GetOpenFileNameW(ofn)
+		
+		SetPath(ofn.lpstrFile)
+		free(ofn.lpstrFile)
+	End Function
+
+
+
+	'フォルダを一階層下げるなどの用途がある
+	Sub PushFile(filename As WordPtr)
+		if nullidx<>0 And pathStr.ptr[nullidx-1]<>separator Then
+			pathStr.addChar(separator)
+		End If
+		pathStr.cat(filename)
+	EndSub
+
+	Sub PushDir(SubDir As WordPtr)
+		PushFile(SubDir)
+		pathStr.addChar(separator)
+	EndSub
+
+	'ディレクトリから出る
+	Sub PopDir()
+		Dim i As Long
+		For i = pathStr.length()-2 To 0 Step -1
+			if pathStr.ptr[i]=separator Then	ExitFor
+			if pathStr.ptr[i]=GetWord(ex":\0") Then ExitSub
+		Next i
+		pathStr.TerminateChar(i+1)
+		'Base[i+1]=0
+	EndSub
+	
+	'拡張子削除
+	Sub deleteExtension()
+		Dim extPtr AS WordPtr
+		extPtr=PathFindExtensionW(pathStr.ptr)
+
+		if extPtr=NULL Then ExitSub
+
+		extPtr[0]=0
+		nullidx=extPtr-pathStr.ptr
+	End Sub
+
+	'文字列やファイル名など追加
+	Sub cat(text as WordPtr)
+		pathStr.cat(text)
+	EndSub
+
+	'ファイル存在チェック
+	Function isExist() AS Long
+		isExist=PathFileExistsW(pathStr.ptr)
+	EndFunction
+
+	Function isDir() AS Long
+		if PathIsDirectoryW(pathStr.ptr) Then 
+			isDir=FALSE
+		Else
+			isDir=TRUE
+		EndIf
+	EndFunction
+
+	Function GetPathString() AS String
+		GetPathString=pathStr.getString()
+	EndFunction
+
+	Function genAddedPath(additionalPath AS WordPtr) AS String
+		Dim tmp AS FilePathW
+		tmp.PushFile(additionalPath)
+		genAddedPath=tmp.GetPathString()
+	EndFunction
+
+	Function GetPath() AS WordPtr
+		GetPath=pathStr.ptr
+	EndFunction
+
+	Function GetPathA() AS BytePtr
+		GetPathA=pathStr.GetAnsi()
+	EndFunction
+
+	Function GetFileName() AS WordPtr
+		GetFileName=PathFindFileNameW(pathStr.ptr)
+	EndFunction
+
+	Function GetFileExt() AS WordPtr
+		GetFileExt=PathFindExtensionW(pathStr.ptr)
+	EndFunction
+
+	Function GetFileDirString() AS String
+		Dim tmp AS FilePathW
+		tmp.setPathSeparatorChar(separator)
+		tmp.SetPath(pathStr.ptr)
+		tmp.PopDir()
+		GetFileDirString=tmp.GetPathString()
+	EndFunction
+
+	Sub Destroy()
+		pathStr.freeStr()
+		nullidx=0
+	EndSub
+
+	Sub ~FilePathW()
+		Destroy()
+	EndSub
+End Class
+
+Const STRCLASS_SPF_BUFFER_WIDE = 1024*2
+Class StringClassW
+Private
+	nullidx As DWord	'nullpos
+	size AS DWord	'buffer size
+	ptrA AS BytePtr	'string(ANSI)
+Public
+	ptr AS WordPtr	'string
+
+	Function cat(text AS WordPtr) AS Long
+		Dim txlen AS DWord
+		txlen=lstrlenW(text)
+		requestBuffer(txlen*2)
+		if (nullidx+txlen)*2 >= size Then allocStr(txlen*2+size)
+		memcpy(ptr+nullidx*2,text,txlen*2)
+		nullidx+=txlen
+		ptr[nullidx]=0
+	EndFunction
+
+	Sub insertHead(newStr AS WordPtr)
+		Dim tmp AS WordPtr
+		copyToNewPtr(tmp)
+		set(newStr)
+		cat(tmp)
+	End Sub
+
+	Sub replaceChar(old AS *Word,newc AS *Word)
+		if nullidx=0 Then ExitSub
+		Dim i As Long
+		Do
+			if ptr[i]=0 Then ExitSub
+			if ptr[i]=old[0] Then ptr[i]=newc[0]
+			i++
+		Loop
+	End Sub
+
+	'
+	Sub requestBuffer(len As Long)
+		if len > size Then allocStr(len+size)
+	End Sub
+	Sub requestAdditionalBuffer(len As Long)
+		requestBuffer(nullidx*2+len)
+	End Sub
+
+	Sub addChar(char AS Word)
+		requestBuffer(nullidx+2)
+		ptr[nullidx]=char
+		nullidx++
+		ptr[nullidx]=0
+	End Sub
+
+	Function cpy(text AS WordPtr) AS Long
+		Dim txlen AS DWord
+		txlen=lstrlenW(text)
+		if txlen*2 > size Then allocStr(txlen*2)
+		memcpy(ptr,text,txlen)
+		nullidx=txlen
+		ptr[nullidx]=0
+	EndFunction
+
+	Function length() AS DWord
+		length=nullidx
+	EndFunction
+
+	Function cmp(text AS WordPtr) AS Long
+		cmp=lstrcmpW(ptr,text)
+	EndFunction
+	Function cmpi(text AS WordPtr) AS Long
+		cmp=lstrcmpiW(ptr,text)
+	EndFunction
+
+	Function sprintf(lpFormat As WordPtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
+		Dim txlen AS DWord
+		txlen=lstrlenW(lpFormat)
+		if txlen+STRCLASS_SPF_BUFFER_WIDE+nullidx > size then allocStr(txlen*2+STRCLASS_SPF_BUFFER_WIDE+nullidx*2)
+		nullidx+=wsprintfW(ptr+nullidx*2,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+	EndFunction
+
+	Sub set(text AS WordPtr)
+		freeStr()
+		nullidx=lstrlenW(text)
+		allocStr(nullidx*2)
+		memcpy(ptr,text,nullidx*2)
+	EndSub
+
+	Sub copyToNewPtr(ByRef dest As WordPtr)
+		dest=calloc(nullidx*2+2)
+		memcpy(dest,ptr,nullidx*2+1)
+	endSub
+
+	Sub update()
+		nullidx=lstrlenW(text)
+		size=nullidx*2
+	EndSub
+
+	Sub TerminateChar(pos As DWord)
+		ptr[pos]=0
+		nullidx=pos
+	EndSub
+
+
+	Sub allocStr(newSize AS DWord)
+		size=newSize+5
+		if ptr=0 Then 
+			ptr=calloc(size)
+		Else
+			ptr=realloc(ptr,size)
+		EndIf
+	EndSub
+
+	Sub freeStr()
+		if ptr<>0 Then free(ptr):	ptr=NULL
+		if ptrA	<> NULL Then free(ptrA):	ptrA=NULL
+		nullidx=0
+		size=0
+	EndSub
+
+	Sub slimMem()
+		ptr=realloc(ptr,nullidx*2+1)
+		size=nullidx*2+1
+	EndSub
+
+	Function getString() AS String
+		getString=MakeStr(GetAnsi())
+	EndFunction
+
+	Function GetAnsi() AS BytePtr
+		if ptrA	<> NULL Then free(ptrA)
+
+	   ' UnicodeからShift-JISに変換
+		ptrA=Wide2Ansi(ptr)
+	   
+		GetAnsi=ptrA
+	End Function
+
+	Sub StringClassW()
+		ptr=NULL
+	EndSub
+
+	Sub ~StringClassW()
+		freeStr()
+	EndSub
+
+End Class
 
 'コマンドライン分割ライブラリ
 Class CommandLine
@@ -997,8 +1488,108 @@ End Class
 	2.次のスペースまでスキップ
 		2.5 そのうちにダブルクォーテーション見つけたら、スキップ -> DQ内のスペースは分割されない
 	3.goto 1 (ｺﾚにより、余分なスペースがいなくなる)
-
 */
+Class CommandLineW
+private 
+	cmdStr AS WordPtr
+	count as Long
+	table AS *WordPtr
+
+	Sub freeMem()
+		if cmdStr<>0 Then free(cmdStr):cmdStr=0
+		if table<>0 Then free(table):table=0
+		count=0
+	EndSub
+
+	Function SkipDQ(text AS WordPtr,txlen AS Long,offset AS Long) AS Long
+	'	Print
+		Dim i AS Long
+		For i = offset To txlen
+			if text[i]=Asc(ex"\q") then ExitFor	
+		Next i
+		SkipDQ=i-offset+1
+	End Function
+Public
+	Sub CommandLineW()(text As WordPtr)
+		if text=0 Then
+			ParseCommandLine(GetCommandLineW())
+		Else
+			ParseCommandLine(text)
+		endif
+	EndSub
+
+	Sub ~CommandLineW()
+		freeMem()
+	EndSub
+
+	Function GetCount() AS Long
+		GetCount=count
+	EndFunction
+
+	Function GetCmd(index AS DWord) AS WordPtr
+		if index>count-1 Then GetCmd=ex"\0":ExitFunction
+		GetCmd=table[index]
+	EndFunction
+
+	Function GetCmdString(index AS DWord) AS String
+		GetCmdString=MakeStr(table[index])
+	EndFunction
+
+	'コマンドラインオプションチェック用
+	Function cmpCmd(index As DWord,cmptext As WordPtr) As Byte
+		if index>count Then cmpCmd=FALSE : ExitFunction
+		if lstrcmpiW(table[index],cmptext)=0 Then
+			cmpCmd=TRUE
+		Else
+			cmpCmd=FALSE
+		endif
+	Endfunction
+
+	Function ParseCommandLine(text AS WordPtr) AS Long
+'		OutputDebugString(ex"called\n")
+		if cmdStr<>0 Then freeMem()
+		'確保
+		Dim txlen AS Long
+		txlen=lstrlenW(text)
+		cmdStr=calloc(txlen*sizeof(Word)+5)
+		memcpy(cmdStr,text,txlen*sizeof(Word)+1)
+
+		'スペースを数える
+		Dim ExpectedCount=0 As Long
+		Dim i aS Long
+		For i = 0 To txlen
+			if cmdStr[i]=Asc(" ") Then 
+				ExpectedCount++
+			endif
+		Next i
+
+		'スペースの分だけテーブルを確保,構築
+		table=calloc(sizeof(WordPtr)*(ExpectedCount+2)+4)
+		count = 0
+
+		Dim it=0 AS Long	'table index
+		For i = 0 To txlen-1
+			if cmdStr[i]<>Asc(" ") and cmdStr[i]<>0 Then
+				'register to table
+				table[it]=cmdStr+i*sizeof(Word)
+				it++
+
+				For i = i To txlen
+					if cmdStr[i]=Asc(" ") Then Exitfor
+					if text[i]=Asc(ex"\q") then	i+=SkipDQ(cmdStr,txlen,i+1)':Print "!"
+				Next i
+
+				'tarminate 1 opt
+				cmdStr[i]=0
+			endif 
+		Next i
+		count=it
+		it++
+		table[it]=0
+	EndFunction
+End Class
+
+
 
 'ファイルパス用クラス
 Class FilePath
@@ -1120,92 +1711,6 @@ End Class
 
 
 'EasyIOのクラス版
-Class File
-Protected
-	hFile As HANDLE
-Public
-	path AS FilePath
-	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS BOOL
-		Dim CreateMode AS Dword
-		If _Mode=GENERIC_READ then
-			CreateMode=OPEN_EXISTING
-		Elseif  _Mode=GENERIC_WRITE then
-			CreateMode=CREATE_ALWAYS
-		Else
-			CreateMode=OPEN_EXISTING
-		EndIf
-
-		hFile=CreateFile(inPath, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-		If hFile=INVALID_HANDLE_VALUE then 
-			openFile = FALSE
-			hFile=0
-		Else
-			openFile = TRUE
-		EndIf
-		path.SetPath(inPath)
-	EndFunction
-
-	Function read(dest AS BytePtr,size As DWord) AS Long
-		Dim dwAB As BytePtr
-		read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
-		If read=TRUE And dwAB=0 then
-			read=-1 As Long	'EOF
-		ElseIf read=FALSE then
-			read=-2 As Long
-		Else
-			read=dwAB AS Long
-		EndIf
-	End Function
-
-	Function readDw() AS Long
-		read(VarPtr(readDw),sizeof(DWord))
-	End Function
-
-	Function write(source AS BytePtr,size As DWord) AS Long
-		WriteFile(hFile,source,size,VarPtr(write),ByVal NULL)
-	End Function
-
-	Function getFilePtr() AS DWord
-		getFilePtr=SetFilePointer(hFile,0,0,FILE_CURRENT)
-	EndFunction
-
-	'up to 4GB
-	Sub setFilePtr(fp AS DWord)
-		'SetFilePointerのlpDistanceToMoveHighをNULLにすると下位がLong扱いになる
-		'なので適当な変数をHighにセットしておけば下位はDWord扱いになる
-		Dim high AS Long
-'		SetLastError(0)
-		SetFilePointer(hFile,fp,VarPtr(high),FILE_BEGIN)
-	End Sub
-
-	Sub addFilePtr(fp AS DWord)
-		SetFilePointer(hFile,fp,0,FILE_CURRENT)
-	End Sub
-
-	Function length() AS Long
-		if hFile = 0 Then length=-1 : Exitfunction
-		length=GetFileSize(hFile,NULL)
-	EndFunction
-
-	Function getHandle() AS HANDLE
-		getHandle=hFile
-	EndFunction
-
-	Sub setHandle(_handle AS HANDLE)
-		hFile=_handle
-	End Sub
-	
-	Function getPath() AS BytePtr
-		getPath=path.GetPath()
-	EndFunction
-
-	Sub close()
-		CloseHandle(hFile)
-		hFile=0
-		path.Destroy()
-	End Sub
-End Class
-
 Class Device 
 	Inherits File
 	
@@ -1282,7 +1787,7 @@ Public
 		cmp=lstrcmp(ptr,text)
 	EndFunction
 	Function cmpi(text AS BytePtr) AS Long
-		cmp=lstrcmp(ptr,text)
+		cmp=lstrcmpi(ptr,text)
 	EndFunction
 
 	Function sprintf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
@@ -1623,55 +2128,7 @@ End Class
 '			たぶんもう使わない関数
 '------------------------------------------------------
 '#include <EasyIO.sbp>
-'Path にパス、ModeにGENERIC_READかGENERIC_WRITE
-Function OpenFile(Path As BytePtr,_Mode AS DWORD) AS HANDLE
-	Dim CreateMode AS Dword
-	If _Mode=GENERIC_READ then
-		CreateMode=OPEN_EXISTING
-	Elseif  _Mode=GENERIC_WRITE then
-		CreateMode=CREATE_ALWAYS
-	Else
-		CreateMode=OPEN_ALWAYS
-	EndIf
-	OpenFile=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-	If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
-EndFunction
 
-'戻り値が-1からNULLになった
-'よりわかりやすい感じに
-Function OpenFileEx(Path As BytePtr,_Mode AS DWORD) AS HANDLE
-	Dim CreateMode AS Dword
-	If _Mode=GENERIC_READ then
-		CreateMode=OPEN_EXISTING
-	Elseif  _Mode=GENERIC_WRITE then
-		CreateMode=CREATE_ALWAYS
-	Else
-		CreateMode=OPEN_ALWAYS
-	EndIf
-	OpenFileEx=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-	If OpenFileEx=INVALID_HANDLE_VALUE then OpenFileEx = NULL As VoidPtr
-EndFunction
-
-Function LoadFile(hFile As HANDLE,DataPtr As BytePtr,Size As DWORD) As BytePtr
-	Dim dwAB As BytePtr
-	LoadFile=ReadFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL) As BytePtr
-	If LoadFile=TRUE And dwAB=0 then
-		LoadFile=-1 As BytePtr
-	ElseIf LoadFile=FALSE then
-		LoadFile=-2 As BytePtr
-	Else
-		LoadFile=DataPtr
-	EndIf
-EndFunction
-
-Function OutFile(hFile As HANDLE,DataPtr As BytePtr,Size As DWORD)
-	Dim dwAB As BytePtr
-	OutFile=WriteFile(hFile,DataPtr,Size,VarPtr(dwAB),ByVal NULL)
-EndFunction
-
-Function GetFilePointer(hFile As HANDLE) As DWORD
-	GetFilePointer=SetFilePointer(hFile,0,0,FILE_CURRENT)
-EndFunction
 
 '引数をNULLで区切る。NULL NULLで終わり (例）コマンド\0引数１\0"引数2"\0\0
 Function MakeCmdLine(Text As BytePtr) as BytePtr

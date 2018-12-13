@@ -284,6 +284,7 @@ def ab_syntax_convert(abline):
 
 			#一行if文なら終了させる
 			if then_idx!=None and len(elm)-1>then_idx:
+				elm[then_idx]="){"
 				oneline_statement=ary2str_offset(elm,then_idx+1)
 				line_end=get_line_end(elm)
 				for i in range(then_idx+1,line_end+1):
@@ -314,6 +315,11 @@ def ab_syntax_convert(abline):
 					line_type=LINE_TYPE_BOSH
 				in_routine=False
 
+		elif keyword=="exitsub":
+			elm[keyword_idx]="return;"
+			trans_line=ary2str(elm)
+			line_type=LINE_TYPE_ON_CPP
+		
 		elif keyword=="const":
 			elm[keyword_idx]="#define"
 			trans_line=ary2str(elm).replace("="," ")
@@ -346,10 +352,10 @@ def ab_syntax_convert(abline):
 			elm=process_declaration(elm)
 
 			# クラス内でCPPモードの時はクラス名：：をつける
-			if in_class and Mode==CPP_MODE:
+			if in_class and Mode==CPP_MODE :
 				elm[keyword_idx+1]+=class_name+"::"
 
-			trans_line=ary2str(elm).replace(",)",")")
+			trans_line=ary2str(elm).replace(",)",")").replace(")(","")
 
 			line_type=LINE_TYPE_BOSH
 			in_routine=True
@@ -576,25 +582,25 @@ def ab_syntax_convert(abline):
 
 
 #main
+if not __debug__:
+	args = sys.argv
+	if len(args) != 3:
+		print("usage:\n\tpython ab2c.py filename")
+		exit(1)
 
-args = sys.argv
+	if args[2].lower()=="h":
+		Mode=HEADER_MODE
+		print("#ifndef "+str(args[1].upper()).replace(".","_"))
+		print("#define "+str(args[1].upper()).replace(".","_"))
+	elif args[2].lower()=="cpp":
+		Mode=CPP_MODE
+	else:
+		Mode=ONEFILE_MODE
 
-if len(args) != 3:
-	print("usage:\n\tpython ab2c.py filename")
-	exit(1)
-
-if args[2].lower()=="h":
-	Mode=HEADER_MODE
-	print("#ifndef "+str(args[1].upper()).replace(".","_"))
-	print("#define "+str(args[1].upper()).replace(".","_"))
-elif args[2].lower()=="cpp":
-	Mode=CPP_MODE
+	f = open(args[1])
 else:
-	Mode=ONEFILE_MODE
-
-#Mode=HEADER_MODE
-#f = open("D:\\My-File\Data\\Programs\\ActiveBasic\\_RGBALib\\ab2c\\FT232HLib_debug.sbp")
-f = open(args[1])
+	Mode=CPP_MODE
+	f = open("D:\\My-File\Data\\Programs\\ActiveBasic\\_RGBALib\\ab2c\\FT232HLib_debug.sbp")
 
 s1 = f.read()
 f.close()
@@ -602,8 +608,9 @@ f.close()
 s1=s1.replace("&H","0x")
 s1=s1.replace(";","\n")
 s1=s1.replace(":",";")
-s1=s1.replace("<>","!=")
-s1=s1.replace("><","!=")
+#s1=s1.replace("<>","!=")
+#s1=s1.replace("><","!=")
+s1=s1.replace("calloc","malloc")
 s1=s1.replace("TRUE","true")
 s1=s1.replace("FALSE","false")
 s1=s1.replace("ByVal","")
@@ -632,6 +639,8 @@ for il in range(len(lines)):
 	csyntax=csyntax.replace("'","//")
 	csyntax=re.sub(r" [Aa][Nn][Dd] ", " & ", csyntax) # if文の中のAndOrは ifの中で変換しているので大丈夫
 	csyntax=re.sub(r" [Oo][Rr] ", " | ", csyntax)
+	csyntax=re.sub(r" [Nn][Oo][Tt]", " !", csyntax)
+	csyntax=csyntax.replace("<>","!=").replace("><","!=")
 
 	#print(str.format("{}: {}",il,csyntax))
 	print(csyntax)

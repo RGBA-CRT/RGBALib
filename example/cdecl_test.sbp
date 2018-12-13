@@ -1,0 +1,25 @@
+#console
+#include<RGBALib.sbp>
+#include<abcdecl.sbp>
+
+declare function func Lib "msvcrt" Alias "printf" (a AS Long, b AS Long, c aS Long,d aS Long,f aS Long,e aS Long) AS Long
+printf2(ex"espがずれないことを確認\n\n",0)
+main()
+Sub main()
+
+	Dim localvalue AS Long,i AS Long, lt AS DWord,stop AS BOOL
+	lt=GetTickCount()
+	do
+		localvalue=func("[ This is cdecl function ]",2,3,4,5,6)
+		esp_adder(6)
+
+		'esp_adderをコメントアウトすると、ESP（スタックポインタ）が異常減少していく事がわかる。
+		printf2(ex"[%d] esp:%08x  ret:%d  \t\r",arg(i,esp_get() AS ARGT,localvalue))
+		if (GetTickCount()-lt > 5*1000) And stop=FALSE Then
+			printf(ex"[5sec] %dms loop count:%d    \n",GetTickCount()-lt,i)
+			stop=TRUE
+		Endif
+
+		i++
+	loop
+endsub
