@@ -168,7 +168,8 @@ Sub ChangeEndianDW(ByRef in As DWord)
 EndSub
 
 Function Str2Dw(Data As BytePtr) As DWORD
-	memcpy(VarPtr(Str2Dw),Data,4)
+	Str2Dw=GetDWord(Data)
+	'memcpy(VarPtr(Str2Dw),Data,4)
 EndFunction
 
 Function Dw2Str(Data As DWORD) As String
@@ -191,6 +192,20 @@ Function InByteBin(Data As BytePtr,Size As DWORD,Bytes As Byte)(Jump AS Long) As
 		if i => Size then InByteBin=-1: ExitDo
 	Loop
 EndFunction
+
+Function SwapWord(val AS Word) AS Word
+	SwapWord = ((val<<8) And &HFF00) Or ((val>>8) And &H00FF) 
+End Function
+
+Function ReverseDWord(val As DWord) AS DWord
+	'ABCD
+	'D  D	; << 3
+	' CC	; << 1
+	' BB	; >> 1
+	'A  A	; >>3
+	ReverseDWord = ((val<<24) And &HFF000000) Or ((val<<8) And &H00FF0000)  Or ((val>>8) And &H0000FF00) Or ((val>>24) And &H000000FF) 
+EndFunction
+
 
 '---------------
 '	Strings
@@ -454,6 +469,69 @@ Function doubleToFormatStr(lpFormat As BytePtr)(a As Double) AS String
 	doubleToFormatStr=MakeStr(Buf)
 EndFunction
 
+' =========================
+' ファイルの容量などを単位付き文字列にする関数(64bit対応)
+' =========================
+Const DC2T_BUFFER_SIZE = 16
+Function DataCap2Text(val AS QWord, text AS BytePtr, length AS DWord)(isLastDigit AS BOOL) AS BytePtr
+	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+
+	Const DC2T_UNIT_IDX_COUNT = 4
+	Dim unitTable[DC2T_UNIT_IDX_COUNT] = ["Byte", "KB", "MB", "GB", "TB"/*, "PB", "EB"*/] As BytePtr
+	Dim unitIndex AS Long
+	Dim lastDigit AS Long
+	Dim size As QWord
+	Dim sign As BytePtr
+
+	if val > &H8000000000000000 Then
+		sign = "-"
+		size = val * -1
+	Else
+		sign = ""
+		size = val
+	End If
+
+	unitIndex = 0
+	lastDigit = 0
+	Do
+		if size < 1024 Then ExitDo
+		if unitIndex >= DC2T_UNIT_IDX_COUNT Then ExitDo
+		lastDigit = ((size Mod 1024) * 10) / 1024
+		size = size/1024
+		unitIndex++
+	Loop
+
+	'QWordをcdeclの可変長引数に突っ込むと死ぬので
+	Dim dwSize AS DWord
+	dwSize = size
+	if lastDigit=0 Or isLastDigit=FALSE Then
+		wsprintf(buffer, ex"%s%d %s",sign,dwSize,unitTable[unitIndex])
+	Else
+		wsprintf(buffer, ex"%s%d.%d %s",sign,dwSize,lastDigit,unitTable[unitIndex])
+	Endif
+
+	if length < DC2T_BUFFER_SIZE Then
+		memcpy(text, buffer, length)
+	Else
+		memcpy(text, buffer, lstrlen(buffer)+1)
+	End If
+	
+End Function
+
+' String型
+Function DataCap2Text_Str(val AS QWord)(isLastDigit AS BOOL) As String
+	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+	DataCap2Text(val,buffer,DC2T_BUFFER_SIZE,isLastDigit)
+	DataCap2Text_Str=MakeStr(buffer)
+End Function
+
+' Print
+Sub PrintDataCap(val AS QWord)(isLastDigit AS BOOL)
+	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+	DataCap2Text(val,buffer,DC2T_BUFFER_SIZE,isLastDigit)
+	PrintPtr(buffer)
+End Sub
+
 
 '------------------------------
 '		Network library
@@ -537,6 +615,9 @@ Sub FreeAsm(func As VoidPtr)
 	VirtualFree(func, 0, MEM_DECOMMIT or MEM_RELEASE) '追加
 End Sub
 
+' ==========================================
+'  cdeclLoaderはabcdecl.sbpに引っ越しました
+' ==========================================
 
 /* ==========================================
  * arg() : 可変引数 -> 配列化関数
@@ -610,6 +691,7 @@ Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT ,g A
 	arg=_arg
 End Function
 
+'printfはこちらを推奨だが、パフォーマンス対して変わらないのでセーフとする
 Dim _print_buf[1024] As Byte,_print_len AS Long
 Sub printf2(format AS BytePtr,arglist AS *ARGT)
 	_print_len=wvsprintf(_print_buf,format,arglist)
@@ -701,9 +783,9 @@ EndSub
 Const PRINTF_BUFFER = 1024
 Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,
 	f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
-	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
-	PrintPtr(Buf,ret)
+	'Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long	
+	_print_len=wsprintf(_print_buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+	PrintPtr(_print_buf,_print_len)
 EndSub
 
 Sub PrintPtr(Text As BytePtr)(Length AS Long)
@@ -981,8 +1063,8 @@ End Function
 Class File
 Protected
 	hFile As HANDLE
-	path AS FilePath
 Public
+	path AS FilePath
 	Function _openFile(_Mode AS DWORD) AS BOOL
 		Dim CreateMode AS Dword
 		If _Mode=GENERIC_READ then
@@ -1038,12 +1120,10 @@ Public
 	EndFunction
 
 	'up to 4GB
-	Sub setFilePtr(fp AS DWord)
-		'SetFilePointerのlpDistanceToMoveHighをNULLにすると下位がLong扱いになる
-		'なので適当な変数をHighにセットしておけば下位はDWord扱いになる
-		Dim high AS Long
-'		SetLastError(0)
-		SetFilePointer(hFile,fp,VarPtr(high),FILE_BEGIN)
+	Sub setFilePtr(fp AS DWord)(fpHigh AS DWord)
+		'SetFilePointerの第3引数 lpDistanceToMoveHighをNULLにすると下位がLong扱いになる
+
+		SetFilePointer(hFile,fp,VarPtr(fpHigh),FILE_BEGIN)
 	End Sub
 
 	Sub addFilePtr(fp AS DWord)
@@ -1051,8 +1131,20 @@ Public
 	End Sub
 
 	Function length() AS Long
-		if hFile = 0 Then length=-1 : Exitfunction
+		if hFile = 0 Then length=0 : Exitfunction
 		length=GetFileSize(hFile,NULL)
+	EndFunction
+
+	Function lengthEx(ByRef highDWord AS DWord) AS Long
+		if hFile = 0 Then length=0 : Exitfunction
+		length=GetFileSize(hFile, VarPtr(highDWord))
+	EndFunction
+
+	Function lengthQWord() AS QWord
+		if hFile = 0 Then lengthQWord=0 : Exitfunction
+		Dim lowDWord As DWord, highDWord AS DWord
+		lowDWord=GetFileSize(hFile, VarPtr(highDWord))
+		lengthQWord = lowDWord OR (highDWord As QWord)<<32
 	EndFunction
 
 	Function getHandle() AS HANDLE
