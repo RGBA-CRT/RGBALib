@@ -1,0 +1,49 @@
+' ActiveBasic Zlib Wrapper Library v0.0 
+' Programmed By RGBA_CRT 2019
+' abcdeclのロードが必要
+
+Const Z_OK            = 0
+Const Z_STREAM_END    = 1
+Const Z_NEED_DICT     = 2
+Const Z_ERRNO        = (-1)
+Const Z_STREAM_ERROR = (-2)
+Const Z_DATA_ERROR   = (-3)
+Const Z_MEM_ERROR    = (-4)
+Const Z_BUF_ERROR    = (-5)
+Const Z_VERSION_ERROR = (-6)
+
+Class ZlibWrapper
+Private 
+	hDll AS HANDLE
+	_crc32 AS *Function (now_crc AS DWord,Buffer AS BytePtr,length as DWord) As DWord
+	_uncompress As *Function (dest As BytePtr, destlen AS *DWord,Source AS BytePtr,sourceLen AS DWord) As Long
+Public
+
+	Function init() AS BOOL
+		Dim flist[20] AS DLL_FUNCTION_CELL,c AS Long
+
+		flist[c].ptr=VarPtr(_crc32)			:	flist[c].alias="crc32"	:	c++
+		flist[c].ptr=VarPtr(_uncompress)	:	flist[c].alias="uncompress"		:	c++
+
+		hDll = DynamicDllLoader("zlib1.dll",flist,c)
+		if hDll <> NULL Then _
+			init = TRUE
+	End Function
+
+	Function isUsable() AS BOOL
+		if hDll <> NULL Then isUsable = TRUE
+	End Function
+
+	Function crc32(now_crc AS DWord,Buffer AS BytePtr,length as DWord) As DWord
+		crc32 = _crc32(now_crc, Buffer, length)
+		esp_adder( 3 * ARG_SIZE )
+	End Function
+
+	Function uncompress(dest As BytePtr,ByRef destLen AS *DWord,src AS BytePtr,srcLen AS DWord) As Long
+		uncompress = _uncompress(dest, VarPtr(destLen), src, srcLen)
+		esp_adder( 4 * ARG_SIZE )
+
+	End Function
+	
+
+End Class

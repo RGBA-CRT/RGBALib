@@ -569,26 +569,50 @@ Type DLL_FUNCTION_CELL
 	alias AS BytePtr
 EndType
 
+Function GetSystemErrorMessage(ByRef textBuffer AS BytePtr, ErrCode AS DWord) AS DWord
+	GetSystemErrorMessage = _
+		FormatMessage( _
+				FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, _
+	  			NULL, ErrCode, LANG_USER_DEFAULT, VarPtr(textBuffer), 0, NULL _
+		)
+End Function
+
 Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
 	Dim hDll AS HINSTANCE
 	Dim errMes AS BytePtr
+	Dim SysErrMes AS BytePtr, SysErrMesLen AS DWord
 
 	hDll=LoadLibrary(DllName)
 	if hDll=0 Then
-		errMes=calloc(1024)
+		SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
+
+		errMes=calloc(1024 + SysErrMesLen)
 		if opt_text=0 Then opt_text=""
-		wsprintf(errMes,ex"%s%sのロードに失敗しました。\nDLLが存在するか確認してください。\nErrorCode : %d",DllName,opt_text,GetLastError())
+
+		wsprintf(errMes,ex"%s%sのロードに失敗しました。\nErrorCode : %d\n%s",DllName,opt_text,GetLastError(), SysErrMes)
+
+		LocalFree(SysErrMes) : SysErrMes = NULL
 		Goto *DDL_RETURN_ERROR
 	EndIf
 
 	Dim i AS Long
 	For i = 0 To count-1
 		if func_list[i].ptr=0 or func_list[i].alias=0 Then Goto *DDL_RETURN_ERROR
-		SetDWord(func_list[i].ptr,GetProcAddress(hDll,func_list[i].alias))	'Func_List.ptrの先に関数ポインタを格納
+		
+		'Func_List.ptrの先に関数ポインタを格納
+		SetDWord(func_list[i].ptr,GetProcAddress(hDll,func_list[i].alias))	
+
+		'取得エラー
 		if GetDWord(func_list[i].ptr)=NULL Then
-			errMes=calloc(1024)
+			' システムエラーメッセージを取得
+			SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
+
+			errMes=calloc(1024 + SysErrMesLen)
 			if opt_text=0 Then opt_text=""
-			wsprintf(errMes,ex"%sから必要な関数が見つかりませんでした。\n正しいバージョンのDLLか確認してください。\nProcName : %s\nErrorCode : %d",DllName,func_list[i].alias,GetLastError())
+
+			wsprintf(errMes,ex"%sから関数が見つかりませんでした。\nDLLのバージョンを確認してください。\nProcName : %s\nErrorCode : %d\n%s",DllName,func_list[i].alias,GetLastError(), SysErrMes)
+
+			LocalFree(SysErrMes) : SysErrMes = NULL
 			Goto *DDL_RETURN_ERROR
 		EndIf
 	Next i
