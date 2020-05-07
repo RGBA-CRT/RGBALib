@@ -97,9 +97,9 @@ Const CSIDL_FLAG_MASK	= &H0000FF00
 '----------------------------------
 Declare Function SetCommState Lib "kernel32.dll" (nCid As HANDLE,ByRef lpDCB As DCB_SETTING) As Byte
 Declare Function GetCommState Lib "kernel32.dll" (nCid As HANDLE, ByRef lpDCB As DCB_SETTING) As Byte
-Declare Function ClearCommError Lib "kernel32" Alias "ClearCommError" ( hFile As HANDLE, lpErrors As DWord,ByRef lpStat As COMSTAT) As Long
+Declare Function ClearCommError Lib "kernel32" Alias "ClearCommError" ( hFile As HANDLE, lpErrors As *DWord,ByRef lpStat As COMSTAT) As Long
 Declare Function SetCommTimeouts Lib "kernel32.dll" (hFile AS HANDLE,lpCommTimeouts AS *COMMTIMEOUTS) AS Byte
-declare Function PurgeComm Lib "kernel32.dll" ( hFile As Long,   dwFlags As Long) As Long
+declare Function PurgeComm Lib "kernel32.dll" ( hFile As HANDLE,   dwFlags As Long) As Long
 Declare Function QueryDosDevice Lib "kernel32" Alias "QueryDosDeviceA" ( lpDeviceName As BytePtr,  lpTargetPath As BytePtr,  ucchMax As DWord) As DWord
 Declare Function SetupComm Lib "kernel32" Alias "SetupComm" (hFile As HANDLE, dwInQueue As Long, dwOutQueue As Long) As BOOL
 Declare Function EscapeCommFunction Lib "kernel32" Alias "EscapeCommFunction" (handle As HANDLE, nFunc As Long) As BOOL
@@ -730,7 +730,7 @@ Const FSHIFT = &H04
 Const FCONTROL = &H08
 Const FALT = &H10
 
-TypeDef HACCEL = DWord
+TypeDef HACCEL = VoidPtr
 
 Type ACCEL
    fVirt As Word
@@ -860,7 +860,9 @@ Type SHELLEXECUTEINFO
     dummy[36] As Byte
 End Type
 
-Declare Function GetDlgItemInt Lib "user32" Alias "GetDlgItemInt" ( hDlg As HWND,  nIDDlgItem As Long,  lpTranslated As Long,  bSigned As Long) As Long 
+' GUI
+Declare Function GetDlgItemInt Lib "user32" Alias "GetDlgItemInt" ( hDlg As HWND,  nIDDlgItem As Long,  lpTranslated As *BOOL,  bSigned As BOOL) As Long 
+Declare Function GetNextDlgTabItem Lib "user32" Alias "GetNextDlgTabItem" (hDlg As HWND, hCtl As HWND, bPrevious As BOOL) As HWND 
 
 Declare Sub CopyMemory Lib "kernel32.dll" Alias "RtlMoveMemory" _
     (ByRef Destination As Any, ByRef Source As Any, _
@@ -975,4 +977,67 @@ Declare Function EndUpdateResource Lib "kernel32" Alias "EndUpdateResourceA" (hU
 Const RT_MANIFESTID =  1
 Const RT_MANIFEST   = 24
 
+
+' ======================= Wrapped APIs =============================
+
+Const DIGCF_DEFAULT = &H1 ' only valid with DIGCF_DEVICEINTERFACE
+Const DIGCF_PRESENT = &H2
+Const DIGCF_ALLCLASSES = &H4
+Const DIGCF_PROFILE = &H8
+Const DIGCF_DEVICEINTERFACE = &H10
+
+Const DICS_ENABLE=1
+Const DICS_FLAG_GLOBAL=1
+Const DICS_DISABLE=2
+Const DICS_FLAG_CONFIGSPECIFIC=2
+Const DICS_PROPCHANGE=3
+Const DICS_START=4
+Const DICS_FLAG_CONFIGGENERAL=4
+Const DICS_STOP=5
+Const DIREG_DEV	=1
+Const DIREG_DRV =2
+Const DIREG_BOTH = 4
+
+Const SPDRP_DEVICEDESC = &H0
+Const SPDRP_FRIENDLYNAME = &HC
+
+Type SP_DEVINFO_DATA
+	cbSize AS DWord
+	ClassGuid AS GUID
+	DevInst As DWord
+	Reserved AS VoidPtr
+End Type
+
+Class SetupApiWrapper
+public
+	hDLL AS HANDLE
+	SetupDiOpenDevRegKey	AS *Function(hDeviceInfoSet AS HANDLE, deviceInfoData AS *SP_DEVINFO_DATA, scope AS DWord, hwProfile AS DWord, KeyType AS DWord, samDesired AS DWord) As HANDLE
+	SetupDiGetClassDevs		AS *Function(ClassGuid As *GUID, Enumerator As BytePtr, HwndParent As HANDLE, Flags As DWord) As HANDLE
+	SetupDiEnumDeviceInfo	AS *Function(DeviceInfoSet As HANDLE, MemberIndex As Long, DeviceInfoData As *SP_DEVINFO_DATA) As BOOL
+	SetupDiClassGuidsFromName AS *Function(ClassName As BytePtr, ClassGuidList As *GUID, ClassGuidListSize As DWord, RequiredSize As *DWord) As BOOL
+	SetupDiGetDeviceRegistryProperty AS *Function(DeviceInfoSet As HANDLE, DeviceInfoData As *SP_DEVINFO_DATA, Property As Long, PropertyRegDataType As *Long, PropertyBuffer As BytePtr, PropertyBufferSize As Long, RequiredSize As *Long) As BOOL
+
+	Function Load() AS BOOL
+		Dim lst[7] AS DLL_FUNCTION_CELL,c AS Long
+		lst[c].ptr=VarPtr(SetupDiOpenDevRegKey)			:	lst[c].alias="SetupDiOpenDevRegKey"		:	c++
+		lst[c].ptr=VarPtr(SetupDiGetClassDevs)			:	lst[c].alias="SetupDiGetClassDevsA"			:	c++
+		lst[c].ptr=VarPtr(SetupDiEnumDeviceInfo)		:	lst[c].alias="SetupDiEnumDeviceInfo"			:	c++
+		lst[c].ptr=VarPtr(SetupDiClassGuidsFromName)	:	lst[c].alias="SetupDiClassGuidsFromNameA"			:	c++
+		lst[c].ptr=VarPtr(SetupDiGetDeviceRegistryProperty):lst[c].alias="SetupDiGetDeviceRegistryPropertyA"		:	c++
+		
+		hDLL = DynamicDllLoader("setupapi",lst,c,0)
+		if hDLL = NULL Then
+			Load=FALSE
+		Else
+			Load=TRUE
+		Endif
+	End Function
+
+	Sub ~SetupApiWrapper()
+		if hDLL<>NULL Then 
+			FreeLibrary(hDLL)
+			hDLL=NULL
+		Endif
+	EndSub
+End Class
 

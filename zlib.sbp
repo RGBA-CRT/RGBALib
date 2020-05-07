@@ -25,7 +25,7 @@ Public
 		flist[c].ptr=VarPtr(_crc32)			:	flist[c].alias="crc32"	:	c++
 		flist[c].ptr=VarPtr(_uncompress)	:	flist[c].alias="uncompress"		:	c++
 
-		hDll = DynamicDllLoader("zlib1.dll",flist,c)
+		hDll = DynamicDllLoader("zlib1.dll",flist,c, TRUE)
 		if hDll <> NULL Then _
 			init = TRUE
 	End Function

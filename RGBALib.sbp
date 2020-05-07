@@ -167,6 +167,19 @@ Sub ChangeEndianDW(ByRef in As DWord)
 	value[2]=Tmp
 EndSub
 
+Function ChangeEndianDW2(in As DWord) As DWord
+	Dim Tmp As Byte
+	Dim value As *Byte
+	value=VarPtr(in)
+	Tmp=value[0]
+	value[0]=value[3]
+	value[3]=Tmp
+	Tmp=value[1]
+	value[1]=value[2]
+	value[2]=Tmp
+	ChangeEndianDW2=GetDWord(value)
+EndFunction
+
 Function Str2Dw(Data As BytePtr) As DWORD
 	Str2Dw=GetDWord(Data)
 	'memcpy(VarPtr(Str2Dw),Data,4)
@@ -533,6 +546,136 @@ Sub PrintDataCap(val AS QWord)(isLastDigit AS BOOL)
 End Sub
 
 
+'(文字列, 変換結果を入れるところ, 基数, 1024か1000か)
+Function rcAsciiToInt(_str AS BytePtr,result_num AS *Long)(_base AS DWord,b1024 AS BOOL) AS BOOL
+	Dim ci AS DWord, ni AS DWord 'char index, num index
+	Dim fNegative AS BOOL, fFixedBase AS BOOL
+	Dim base AS DWord, siZoom AS DWord
+	Dim num AS DWord
+	Dim state AS DWord
+	Dim str As BytePtr
+
+	'基数
+	'引数のbaseが0だとAuto, それ以外は固定, 最大１６まで
+	if _base=<1 Then	
+		base = 10
+	Else 
+		base=_base
+		fFixedBase=TRUE
+	End If
+
+	'si接頭辞があるときに、1000で計算するか1024で計算するか
+	if b1024 Then
+		siZoom=1024
+	Else
+		siZoom=1000
+	End If
+
+	str=calloc(lstrlen(_str)+4)
+	lstrcpy(str,_str)
+	CharLower(str)
+
+	Do 
+		'文字列の終了チェック
+		if str[ci]=0 Then ExitDo
+
+		'数値に入る前の処理
+		if state=0 Then
+			if str[ci] = &H2D Then
+				fNegative=TRUE
+				ci++
+				continue
+			Else if str[ci] = &H30 then
+				'16進 0x
+				if str[ci+1]=&H78 Then
+					base=16
+					ci+=2
+					continue
+
+				'2進 0b
+				Else if str[ci+1]=&H62 Then
+					base=2 
+					ci+=2
+					continue
+				End If
+			End If
+
+			'数値だったら数値解析ステートに移る
+			if (str[ci] >= &H30 And str[ci] <= &H39) or _
+				(base=16 And (str[ci] >= &H61 And str[ci] <= &H66)) Then					
+				state++
+
+				'固定基数なのに変わってたらアウト
+				if fFixedBase And (base <> _base) Then Goto *rcATOI_ERRNUM
+			Else 
+				ci++
+				continue
+			End If
+		End If
+
+		'数値処理
+		if state=1 Then
+			if (str[ci] >= &H30 And str[ci] <= &H39) Then
+				if (str[ci]-&H30) => base Then Goto *rcATOI_ERRNUM
+				num=num * base
+				num=num + str[ci]-&H30
+			Elseif (base=16 And (str[ci] >= &H61 And str[ci] <= &H66)) Then
+				num = num * base 
+				num = num + str[ci]-&H61 +10 
+			Else 
+				state++
+			Endif
+		End If
+
+		'SI 接頭辞処理
+		if state=2 Then 
+			Select Case str[ci]
+				Case &H6B
+					num*=siZoom
+				Case &H6D
+					num*=siZoom*siZoom
+				Case &H67
+					num*=siZoom*siZoom*siZoom
+				Case &H74 
+					num*=siZoom*siZoom*siZoom*siZoom
+			End Select
+			ci++
+			state++
+		End If
+
+		if state=3 Then 
+			if isSameBin(str+ci,"bit",3) Then
+'				num=num/8
+				num=num>>3
+			End If
+			state++
+		End If
+
+		if state=4 Then ExitDo
+
+		ci++
+
+	Loop
+
+	if fNegative Then	num*=-1
+#ifdef _DEBUG
+	printf(ex"[atoi@RGBA-CRT]str = %s\nfNegative = %d\nbase = %d\nnum = %d\nnum = 0x%X\nnum = %dK\n\n", _
+		str			 As DWord, _
+		fNegative	 As DWord, _
+		base, _
+		num, _
+		num, _
+		(num/siZoom) As DWord)
+#endif
+
+	rcAsciiToInt=TRUE
+	SetDWord(result_num,num)
+	ExitFunction
+
+*rcATOI_ERRNUM
+	rcAsciiToInt=FALSE
+End Function
+
 '------------------------------
 '		Network library
 '------------------------------
@@ -577,26 +720,29 @@ Function GetSystemErrorMessage(ByRef textBuffer AS BytePtr, ErrCode AS DWord) AS
 		)
 End Function
 
-Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
+Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long, bMsgOutput AS BOOL)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
 	Dim hDll AS HINSTANCE
-	Dim errMes AS BytePtr
-	Dim SysErrMes AS BytePtr, SysErrMesLen AS DWord
+	Dim mainErrMes AS BytePtr
 
+	' DLLロード
 	hDll=LoadLibrary(DllName)
+
+	' エラー処理
 	if hDll=0 Then
-		SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
+		' エラーメッセージ作成（有効なら
+		if bMsgOutput Then
+			if opt_text=0 Then opt_text=""
+			mainErrMes=calloc(1024)
+			wsprintf(mainErrMes,ex"%s%sのロードに失敗しました。",DllName,opt_text)
+		End If
 
-		errMes=calloc(1024 + SysErrMesLen)
-		if opt_text=0 Then opt_text=""
-
-		wsprintf(errMes,ex"%s%sのロードに失敗しました。\nErrorCode : %d\n%s",DllName,opt_text,GetLastError(), SysErrMes)
-
-		LocalFree(SysErrMes) : SysErrMes = NULL
 		Goto *DDL_RETURN_ERROR
 	EndIf
 
+	' 関数ロードループ
 	Dim i AS Long
 	For i = 0 To count-1
+		' 代入先ポインタチェック
 		if func_list[i].ptr=0 or func_list[i].alias=0 Then Goto *DDL_RETURN_ERROR
 		
 		'Func_List.ptrの先に関数ポインタを格納
@@ -604,27 +750,41 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 
 		'取得エラー
 		if GetDWord(func_list[i].ptr)=NULL Then
-			' システムエラーメッセージを取得
-			SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
+			if bMsgOutput Then
+				if opt_text=0 Then opt_text=""
+				mainErrMes=calloc(1024)
+				wsprintf(mainErrMes,ex"%sから関数が見つかりませんでした。\nDLLのバージョンを確認してください。\nProcName : %s",DllName,func_list[i].alias)
+			End If
 
-			errMes=calloc(1024 + SysErrMesLen)
-			if opt_text=0 Then opt_text=""
-
-			wsprintf(errMes,ex"%sから関数が見つかりませんでした。\nDLLのバージョンを確認してください。\nProcName : %s\nErrorCode : %d\n%s",DllName,func_list[i].alias,GetLastError(), SysErrMes)
-
-			LocalFree(SysErrMes) : SysErrMes = NULL
 			Goto *DDL_RETURN_ERROR
 		EndIf
 	Next i
 
+	' 正常終了
 	DynamicDllLoader=hDll
 	ExitFunction
+
+
 *DDL_RETURN_ERROR
-	DynamicDllLoader=0
-	if hDll<>0 Then FreeLibrary(hDll)
-	if errMes<>0 Then 
-		MessageBox(hWnd,errMes,"DLLロードエラー",MB_ICONERROR)
-		free(errMes)
+	'エラー終了時
+	DynamicDllLoader=NULL
+
+	if hDll<>NULL Then _
+		FreeLibrary(hDll)
+
+	if mainErrMes<>NULL Then 
+		Dim SysErrMes AS BytePtr, SysErrMesLen AS DWord
+		' システムエラーメッセージを取得
+		SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
+
+		if SysErrMesLen + lstrlen(mainErrMes) < 1024 Then
+			wsprintf(mainErrMes + lstrlen(mainErrMes), ex"\nErrorCode: %d\n%s",GetLastError(),SysErrMes)
+		Endif
+
+		MessageBox(hWnd,mainErrMes,"DLL Load Error",MB_ICONERROR)
+
+		LocalFree(SysErrMes) : SysErrMes = NULL
+		free(mainErrMes)
 	EndIf
 EndFunction
 
@@ -895,6 +1055,82 @@ Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
 
 	SetCommTimeouts(hComPortPort,VarPtr(ct))
 EndFunction
+
+
+TypeDef ESP_CALLBACK_T = *Function(userdata As VoidPtr, PortName As BytePtr, FriendlyName AS BytePtr) AS Long
+Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_T, userdata As VoidPtr) As BOOL
+	EnumSerialPorts=FALSE
+	Dim classGUID[0] As GUID
+	Dim DeviceInfoData AS SP_DEVINFO_DATA
+	Dim dwReqSize AS DWord
+
+	'個々のコードはWin2000以降専用
+
+	'Setup API の PortsのGUIDを取得 
+	DeviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA)
+	if setupapi->SetupDiClassGuidsFromName("Ports", classGUID, 1,VarPtr(dwReqSize)) = FALSE Then
+		Print "GetClass Error"
+	Endif
+
+	Dim hDevInfoSet AS HANDLE
+	hDevInfoSet = setupapi->SetupDiGetClassDevs(VarPtr(classGUID[0]), NULL, NULL, DIGCF_PRESENT OR DIGCF_PROFILE)
+	if hDevInfoSet = INVALID_HANDLE_VALUE Then ExitFunction
+	
+'	printf(ex"%s\n",GuidToText_calloc(classGUID))
+
+	'レジストリrエントリを走査
+	Dim EnumDeviceIndex AS Long
+
+	Do
+		if setupapi->SetupDiEnumDeviceInfo(hDevInfoSet, EnumDeviceIndex, VarPtr(DeviceInfoData)) = FALSE Then ExitDo
+
+		Dim regFriendlyName[MAX_PATH] AS Byte
+		Dim dwPropType As DWord
+
+		'DevInfoDataから"USB-SERIAL CH340 (COM3)"などのフレンドリーネームを取得
+		If setupapi->SetupDiGetDeviceRegistryProperty(
+			hDevInfoSet,
+			VarPtr(DeviceInfoData),
+			SPDRP_DEVICEDESC,
+			VarPtr(dwPropType),
+			regFriendlyName,
+			MAX_PATH,
+			VarPtr(dwReqSize)
+		) = FALSE Then ExitFunction
+
+		' COM3　などのポート名を取得
+		Dim hKey AS HANDLE
+		hKey = setupapi->SetupDiOpenDevRegKey(hDevInfoSet,VarPtr(DeviceInfoData),
+				                            DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ)
+		if hKey = INVALID_HANDLE_VALUE Then ExitFunction
+				
+		Dim lpType AS DWord, regReadSize AS DWord
+		Dim portName[10] AS Byte
+		regReadSize=10
+		RegQueryValueEx(hKey,("PortName"),NULL,VarPtr(lpType),portName,VarPtr(regReadSize))
+		portName[10]=0
+
+		' Portsで列挙されるLPTを排除する
+		If win_strncmpi(portName, "COM", 3) Then
+			callback(userdata, portName, regFriendlyName)
+		End If
+
+		EnumDeviceIndex++
+	Loop
+
+	EnumSerialPorts=TRUE
+EndFunction
+
+Const GUID_TEXT_SIZE = 40
+Function GuidToText_calloc(guid AS *GUID) AS BytePtr
+	GuidToText_calloc=calloc(GUID_TEXT_SIZE)
+	wsprintf(GuidToText_calloc, "{%08X-%04X-%04X-%04X-%04X%08X}", _
+		guid->Data1,guid->Data2,guid->Data3,SwapWord(GetWord(guid->Data4)), _
+		SwapWord(GetWord(guid->Data4+2)),ReverseDWord(GetDWord(guid->Data4+4))
+	)
+End Function
+
+
 
 '---------------
 '	Math
@@ -1908,7 +2144,7 @@ Public
 
 	Function sprintf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
 		Dim txlen AS DWord
-		txlen=lstrlen(lpFormat)
+		txlen=1024'lstrlen(lpFormat)
 		if txlen+STRCLASS_SPF_BUFFER+pNull > size then allocStr(txlen+STRCLASS_SPF_BUFFER+pNull)
 		pNull+=wsprintf(ptr+pNull,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	EndFunction
@@ -1963,6 +2199,7 @@ Public
 
 	Sub StringClass()
 		ptr=NULL
+		pNull=0
 	EndSub
 
 	Sub ~StringClass()
@@ -2003,7 +2240,12 @@ Public
 	Function MakePath(subPath AS BytePtr) AS BytePtr
 		freeTmp()
 		TempString=calloc(p+lstrlen(subPath)+1)
-		wsprintf(TempString,"%s%s",BinalyRoot,subPath)
+
+		Dim filtered_subPath AS BytePtr
+		filtered_subPath = DelDQ(subPath)
+		wsprintf(TempString,"%s%s",BinalyRoot,filtered_subPath)
+		free(filtered_subPath)
+
 		MakePath=TempString
 	End Function
 
@@ -2014,6 +2256,59 @@ Public
 	Sub freeTmp()
 		if TempString<>0 Then free(TempString):TempString=0
 	EndSub
+End Class
+
+Const SEED_CRC32 = &HEDB88320
+
+
+Class HashCrc32
+Public
+	_seed as DWord
+	_table AS *DWord
+
+Public
+	Sub HashCrc32()
+		_seed = SEED_CRC32
+		_table = NULL
+	End Sub
+
+	Sub SetHashTable(table As BytePtr)
+		_table = table
+	End Sub	
+
+	Function MakeTable() AS BOOL
+		_table = calloc(256 * SizeOf(DWord))
+
+		Dim i AS Long, b AS Long, crc AS DWord
+		For i=0 to 255
+			crc = i
+			For b=0 To 7
+				if crc And 1 Then 
+					crc = ( crc >> 1 ) xor _seed
+				Else
+					crc = crc >> 1
+				End If
+			Next b
+			_table[i] = crc
+		Next i	
+		
+		MakeTable = TRUE	
+	End Function
+
+	Function GetHash(data As BytePtr,len As DWord) As DWord
+		if _table=NULL Then ExitFunction
+
+		Dim crc32 AS DWord
+		crc32 = &HFFFFFFFF
+		While len
+			crc32 = (crc32 >> 8) xor _table[(crc32 xor data[0]) And &HFF];
+			len--
+			data++
+		Wend
+
+		crc32 = NOT(crc32)
+		GetHash = crc32
+	EndFunction
 End Class
 
 Class ABMatrix
@@ -2238,7 +2533,6 @@ Public
 		delete tmp
 	End Function
 End Class
-
 
 '------------------------------------------------------
 '			たぶんもう使わない関数

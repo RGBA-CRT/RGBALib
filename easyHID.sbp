@@ -407,5 +407,5 @@ End Sub
 Function EasyHID_getProductStringA(handle AS HANDLE) AS BytePtr
 	Dim tmp[EH_GPSA_LENGTH] AS Byte
 	HidD_GetProductString(handle,tmp,EH_GPSA_LENGTH)
-	EasyHID_getProductStringA = UTF16ToSJIS(tmp As WordPtr)
+	EasyHID_getProductStringA = Wide2Ansi(tmp As WordPtr)
 End Function
