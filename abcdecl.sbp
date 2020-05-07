@@ -1,0 +1,90 @@
+'-----------------------------------
+'	cdecl utils for ActiveBasic 4
+'   Programmed by RGBA_CRT 2018
+'-----------------------------------
+'インクルードするだけでロードされます
+
+/* ================================================================
+ *  esp_adder : ActiveBasicからcdeclな関数を正常実行する関数
+ * ================================================================
+ *
+ *	ActiveBasicは基本的にcdeclとして呼び出すことができない。（DLL以外）
+ *	cdeclとstdcallの違いは呼び出し側がスタックを戻すか関数側が戻すかである。
+ *	esp_adderは手動でスタックを戻す関数である。
+ *	cdecl関数を呼んだ後、esp_adderに引数の数を渡せばスタックが正常な状態に戻る。
+ * 
+ *  esp_adder(戻すバイト数)
+ */
+
+'関数のプロトタイプ
+TypeDef proto_esp_adder = *Sub(n_arg As Long)
+TypeDef proto_esp_get = *Function() As VoidPtr
+
+Const ARG_SIZE = 4 'x84
+
+'関数ポインタ
+Dim esp_adder AS proto_esp_adder
+Dim esp_get AS proto_esp_get
+
+'関数を作成
+load_esp_adder()
+
+Sub load_esp_adder()
+	Const _ESP_GET_SIZE = 3
+	Const _ESP_ADDER_SIZE = 6
+	Const _ESP_ADDER_BIN_SIZE = _ESP_ADDER_SIZE + _ESP_GET_SIZE
+	Const _ESP_GET_OFFSET = _ESP_ADDER_SIZE
+
+	'esp adderの関数本体（マシン語）
+	Dim _esp_adder_bin[ELM(_ESP_ADDER_BIN_SIZE)]=[
+		&H59,				'POP ECX 		; リターンアドレスをECXに退避
+		&H5A,				'POP EDX		; 引数n_argをEDXに退避
+	'	&HC1, &HE2, &H02,	'SHL EDX, 2		; n_add = n_arg*4 (引数の数*sizeof(int))
+		&H01, &HD4,			'ADD ESP,EDX	; esp += n_add
+		&HFF, &HE1,			'JMP ECX		; リターン（手動）
+		
+		'------------------------
+		'おまけ関数
+		'esp_get():
+		&H89, &HE0,		'MOV EAX, ESP
+		&HC3			'RET
+	] As Byte
+
+	'↑を実行可能領域へ転送
+	Dim execution_area_ptr AS VoidPtr
+	execution_area_ptr = VirtualAlloc(NULL, _ESP_ADDER_BIN_SIZE, MEM_COMMIT, PAGE_EXECUTE_READWRITE)	
+	memcpy(execution_area_ptr, _esp_adder_bin, _ESP_ADDER_BIN_SIZE)
+
+	'関数ポインタをセット
+	esp_adder = execution_area_ptr
+	esp_get   = execution_area_ptr + _ESP_GET_OFFSET
+End Sub
+
+'----------------------------------------------------------------------
+' 以下は廃止予定関数（でかい、おそい）
+
+/*
+ * cdeclの関数呼び出しができる関数
+ * 引数 ：FuncAdr	-> CDECL関数のアドレス
+ *		：params	-> 引数（DWord）のリスト
+ * 		：nParam	-> 引数の個数
+ * 戻り値はその関数の戻り値
+ * 機械語のソースは別ファイル参照
+*/
+TypeDef Type_cdeclLoader = *Function(FuncAdr AS VoidPtr , params AS *DWord,nParam AS Byte) As DWord
+Function Load_cdeclLoader() AS Type_cdeclLoader
+	Dim _cdeclLoader_bin[ELM(&H8F)]=[
+	&H55,&H89,&HE5,&H83,&HEC,&H20,&H8A,&H45,&H10,&H8B,&H4D,&H0C,&H8B,&H55,&H08,&H88,&H45,
+	&HFB,&H89,&H4D,&HF4,&H89,&H55,&HF0,&H0F,&HB6,&H4D,&HFB,&HC1,&HE1,&H02,&H89,&H4D,&HEC,
+	&H83,&H7D,&HF4,&H00,&H0F,&H84,&H39,&H00,&H00,&H00,&H0F,&HB6,&H45,&HFB,&H89,&H45,&HE8,
+	&H83,&H7D,&HE8,&H00,&H0F,&H84,&H23,&H00,&H00,&H00,&H8B,&H45,&HE8,&H83,&HE8,&H01,&H8B,
+	&H4D,&HF4,&H8B,&H04,&H81,&H89,&H45,&HE4,&HFF,&H75,&HE4,&H89,&H45,&HFC,&H8B,&H45,&HE8,
+	&H83,&HC0,&HFF,&H89,&H45,&HE8,&HE9,&HD3,&HFF,&HFF,&HFF,&HE9,&H00,&H00,&H00,&H00,&H90,
+	&HFF,&H55,&HF0,&H03,&H65,&HEC,&H89,&H45,&HE0,&H89,&H45,&HFC,&H8B,&H45,&HE0,&H83,&HC4,
+	&H20,&H5D,&HC2,&H0C,&H00] As Byte
+
+	'↑を実行可能領域へ転送
+	Load_cdeclLoader=VirtualAlloc(NULL, &H8F, MEM_COMMIT, PAGE_EXECUTE_READWRITE)	
+	if Load_cdeclLoader=0 Then ExitFunction
+	memcpy(Load_cdeclLoader,_cdeclLoader_bin,&H8F)
+End Function
