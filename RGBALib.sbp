@@ -325,20 +325,47 @@ EndFunction
 Function FindStr(text AS BytePtr,size aS DWord,target AS BytePtr) aS Long
 	Dim i AS Long,tarLen AS Long
 	tarLen=lstrlen(target)
-	Do
-		if text[i]=target[0] Then
-			if CompareString(LOCALE_SYSTEM_DEFAULT,0,text+i,tarLen,target,tarLen)=CSTR_EQUAL Then
-				ExitDo
-			Else
-				i+=tarLen
+
+	' [最適化]4バイト以上ある場合はCompareガードをDWordで比較する
+	if tarLen > 4 Then
+		Do
+			if GetDWord(text+i)=GetDWord(target) Then
+				if CompareString(LOCALE_SYSTEM_DEFAULT,0,text+i,tarLen,target,tarLen)=CSTR_EQUAL Then
+					ExitDo
+				Else
+					i+=tarLen
+				End If
+			Endif
+			i++
+			If text[i]=0 Then
+				FindStr=-1
+				ExitFunction
 			End If
-		Else If text[i]=0 Then
-			FindStr=-1
-			ExitFunction
-		End If
-		i++
-		if i>size Then ExitDo
-	Loop
+			if i>size Then 
+				FindStr=-2
+				ExitFunction
+			End If
+		Loop
+	Else
+		Do
+			if text[i]=target[0] Then
+				if CompareString(LOCALE_SYSTEM_DEFAULT,0,text+i,tarLen,target,tarLen)=CSTR_EQUAL Then
+					ExitDo
+				Else
+					i+=tarLen
+				End If
+			Endif
+			i++
+			If text[i]=0 Then
+				FindStr=-1
+				ExitFunction
+			End If
+			if i>size Then 
+				FindStr=-2
+				ExitFunction
+			End If
+		Loop
+	Endif
 	FindStr=i
 End Function
 
@@ -1069,7 +1096,7 @@ Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_
 	'Setup API の PortsのGUIDを取得 
 	DeviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA)
 	if setupapi->SetupDiClassGuidsFromName("Ports", classGUID, 1,VarPtr(dwReqSize)) = FALSE Then
-		Print "GetClass Error"
+		PrintPtr("GetClass Error")
 	Endif
 
 	Dim hDevInfoSet AS HANDLE
@@ -1130,6 +1157,33 @@ Function GuidToText_calloc(guid AS *GUID) AS BytePtr
 	)
 End Function
 
+Function GetComBaudrate(hSerial AS HANDLE) AS DWord
+	Dim dcb As DCB_SETTING
+	GetCommState(hSerial, dcb)
+	GetComBaudrate = dcb.BaudRate
+End Function
+
+Function SetComTimeOut(hSerialPort AS HANDLE, TimeOut AS DWord) AS Byte
+	Dim ct AS COMMTIMEOUTS
+	ct.ReadIntervalTimeout = TimeOut '連続受信タイムアウト
+	ct.ReadTotalTimeoutConstant = TimeOut 'Constant+Multiplier*バイト数＝タイムアウト
+	ct.ReadTotalTimeoutMultiplier = 20
+	ct.WriteTotalTimeoutConstant = TimeOut
+	ct.WriteTotalTimeoutMultiplier = 20
+	
+	SetCommTimeouts(hSerialPort, VarPtr(ct))
+End Function
+
+Sub ChangeComBaudrate(hSerial AS HANDLE, rate AS DWord)
+	Dim dcb As DCB_SETTING
+	GetCommState(hSerial, dcb)
+	dcb.BaudRate = rate '転送速度の指定
+	SetCommState(hSerial, dcb)
+	
+	FlushCom(hSerial)
+	
+	GetCommState(hSerial, dcb)
+End Sub
 
 
 '---------------
@@ -2296,7 +2350,11 @@ Public
 	End Function
 
 	Function GetHash(data As BytePtr,len As DWord) As DWord
-		if _table=NULL Then ExitFunction
+		if _table=NULL Then 
+			if MakeTable() = FALSE Then
+				ExitFunction
+			End If
+		End If
 
 		Dim crc32 AS DWord
 		crc32 = &HFFFFFFFF

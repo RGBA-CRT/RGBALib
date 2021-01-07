@@ -582,25 +582,25 @@ def ab_syntax_convert(abline):
 
 
 #main
-if not __debug__:
-	args = sys.argv
-	if len(args) != 3:
-		print("usage:\n\tpython ab2c.py filename")
-		exit(1)
+# if not __debug__:
+args = sys.argv
+if len(args) != 3:
+	print("usage:\n\tpython ab2c.py filename")
+	exit(1)
 
-	if args[2].lower()=="h":
-		Mode=HEADER_MODE
-		print("#ifndef "+str(args[1].upper()).replace(".","_"))
-		print("#define "+str(args[1].upper()).replace(".","_"))
-	elif args[2].lower()=="cpp":
-		Mode=CPP_MODE
-	else:
-		Mode=ONEFILE_MODE
-
-	f = open(args[1])
-else:
+if args[2].lower()=="h":
+	Mode=HEADER_MODE
+	print("#ifndef "+str(args[1].upper()).replace(".","_"))
+	print("#define "+str(args[1].upper()).replace(".","_"))
+elif args[2].lower()=="cpp":
 	Mode=CPP_MODE
-	f = open("D:\\My-File\Data\\Programs\\ActiveBasic\\_RGBALib\\ab2c\\FT232HLib_debug.sbp")
+else:
+	Mode=ONEFILE_MODE
+
+f = open(args[1])
+# else:
+# 	Mode=CPP_MODE
+# 	f = open("D:\\My-File\Data\\Programs\\ActiveBasic\\_RGBALib\\ab2c\\FT232HLib_debug.sbp")
 
 s1 = f.read()
 f.close()
