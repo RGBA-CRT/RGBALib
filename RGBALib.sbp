@@ -140,6 +140,29 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 	RunAndGetExitCode=exitCode
 EndFunction
 
+' requires InitCommonControls()
+Function CreateTooltip(hOwner AS HWND, hTooltip As *HANDLE, stTool As *TOOLINFO, text As BytePtr) AS BOOL
+	SetDWord(hTooltip,_
+		CreateWindowEx( 0 , TOOLTIPS_CLASS ,_
+			NULL , TTS_ALWAYSTIP ,_
+			CW_USEDEFAULT , CW_USEDEFAULT ,_
+			CW_USEDEFAULT , CW_USEDEFAULT ,_
+			hOwner , NULL , GetModuleHandle(0) ,_
+			NULL 
+		)
+	)
+
+	GetClientRect(hOwner , ByVal VarPtr(stTool->rect))
+		
+	stTool->cbSize = sizeof(TOOLINFO)
+	stTool->uFlags = TTF_SUBCLASS
+	stTool->hwnd = hOwner
+	stTool->lpszText = text
+
+	CreateTooltip = SendMessage(GetDWord(hTooltip) As HWND, TTM_ADDTOOL , 0 , stTool As Long)
+
+End Function
+
 '----------------------
 '		Binaly
 '----------------------
@@ -1740,7 +1763,7 @@ Public
 		size=nullidx*2
 	EndSub
 
-	Sub TerminateChar(pos As DWord)
+	Sub TerminateIndex(pos As DWord)
 		ptr[pos]=0
 		nullidx=pos
 	EndSub
@@ -2044,7 +2067,7 @@ Public
 			if pathStr.ptr[i]=separator Then	ExitFor
 			if pathStr.ptr[i]=Asc(":") Then ExitSub
 		Next i
-		pathStr.TerminateChar(i+1)
+		pathStr.TerminateIndex(i+1)
 		'Base[i+1]=0
 	EndSub
 	
@@ -2055,8 +2078,8 @@ Public
 
 		if extPtr=NULL Then ExitSub
 
-		extPtr[0]=0
-		pNull=extPtr-pathStr.ptr
+		pNull=(extPtr-pathStr.ptr) As DWord
+		pathStr.TerminateIndex(pNull)
 	End Sub
 
 	'•¶Žš—ñ‚âƒtƒ@ƒCƒ‹–¼‚È‚Ç’Ç‰Á
@@ -2133,6 +2156,7 @@ End Class
 Const STRCLASS_SPF_BUFFER = 1024
 Class StringClass
 Private
+	bufferSize AS DWord
 	pNull As DWord	'nullpos
 	size AS DWord	'buffer size
 Public
@@ -2220,7 +2244,7 @@ Public
 		size=pNull
 	EndSub
 
-	Sub TerminateChar(pos As DWord)
+	Sub TerminateIndex(pos As DWord)
 		ptr[pos]=0
 		pNull=pos
 	EndSub
