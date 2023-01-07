@@ -1,6 +1,6 @@
 '-----------------------------------
 '	cdecl utils for ActiveBasic 4
-'   Programmed by RGBA_CRT 2018
+'   Programmed by RGBA_CRT 2018-2022
 '-----------------------------------
 'インクルードするだけでロードされます
 
@@ -14,17 +14,26 @@
  *	cdecl関数を呼んだ後、esp_adderに引数の数を渡せばスタックが正常な状態に戻る。
  * 
  *  esp_adder(戻すバイト数)
+ *
+ * ================================================================
+ *  ThisCall: ActiveBasicでクラス内の関数ポインタを呼ぶ準備をする関数
+ * ================================================================
+ *  クラス内の関数を呼ぶためにECXレジスタに引数のThisを設定する。
+ *  呼ぶときには第１引数でこのThisCallを設定する必要がある
+ *  制約：呼び出される側は第１引数をDummyにしなければならない。
  */
 
 '関数のプロトタイプ
-TypeDef proto_esp_adder = *Sub(n_arg As Long)
+TypeDef proto_esp_adder = *
 TypeDef proto_esp_get = *Function() As VoidPtr
 
 Const ARG_SIZE = 4 'x84
 
 '関数ポインタ
-Dim esp_adder AS proto_esp_adder
-Dim esp_get AS proto_esp_get
+Dim esp_adder AS *Sub(n_arg As Long)
+Dim esp_get AS *Function() As VoidPtr
+Dim ThisCall AS *Function(instance AS VoidPtr) As VoidPtr
+Dim GetThisTest AS *Function() As VoidPtr
 
 '関数を作成
 load_esp_adder()
@@ -32,8 +41,10 @@ load_esp_adder()
 Sub load_esp_adder()
 	Const _ESP_GET_SIZE = 3
 	Const _ESP_ADDER_SIZE = 6
-	Const _ESP_ADDER_BIN_SIZE = _ESP_ADDER_SIZE + _ESP_GET_SIZE
+	Const _THISCALL_SIZE = 6'4
+	Const _ESP_ADDER_BIN_SIZE = _ESP_ADDER_SIZE + _ESP_GET_SIZE + _THISCALL_SIZE + 10
 	Const _ESP_GET_OFFSET = _ESP_ADDER_SIZE
+	Const _THISCALL_OFFSET = _ESP_GET_OFFSET + _ESP_GET_SIZE
 
 	'esp adderの関数本体（マシン語）
 	Dim _esp_adder_bin[ELM(_ESP_ADDER_BIN_SIZE)]=[
@@ -44,20 +55,36 @@ Sub load_esp_adder()
 		&HFF, &HE1,			'JMP ECX		; リターン（手動）
 		
 		'------------------------
-		'おまけ関数
 		'esp_get():
 		&H89, &HE0,		'MOV EAX, ESP
-		&HC3			'RET
+		&HC3,			'RET
+
+		'------------------------
+		&H5A,				'POP EDX		; リターンアドレスをEDXに退避
+		&H59,				'POP ECX 		; 引数１をECX(thiscallに於けるthisポインタ置き場)にコピー
+		&H89, &HC8,		'MOV EAX, ECX	; 一応関数の戻り地としてthisを設定（ActiveBasicでは使い道がないので不要ト可）
+		&HFF, &HE2,			'JMP ECX		; リターン（手動）
+
+		'------------------------
+		&H8B, &H45, &HFC,
+		&HC3 
 	] As Byte
 
 	'↑を実行可能領域へ転送
 	Dim execution_area_ptr AS VoidPtr
 	execution_area_ptr = VirtualAlloc(NULL, _ESP_ADDER_BIN_SIZE, MEM_COMMIT, PAGE_EXECUTE_READWRITE)	
 	memcpy(execution_area_ptr, _esp_adder_bin, _ESP_ADDER_BIN_SIZE)
+	'解放はOSに任せる。
+
+	'保護
+	'Dim oldFlags AS Long
+	'VirtualProtect(execution_area_ptr, _ESP_ADDER_BIN_SIZE, PAGE_EXECUTE, VarPtr(oldFlags))
 
 	'関数ポインタをセット
 	esp_adder = execution_area_ptr
 	esp_get   = execution_area_ptr + _ESP_GET_OFFSET
+	ThisCall  = execution_area_ptr + _THISCALL_OFFSET
+	GetThisTest = execution_area_ptr + _THISCALL_OFFSET+_THISCALL_SIZE
 End Sub
 
 '----------------------------------------------------------------------

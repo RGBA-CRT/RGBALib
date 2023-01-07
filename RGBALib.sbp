@@ -11,10 +11,10 @@
 '--------------------------------------------------------
 
 ' %fが使える
-Declare Function printfvc cdecl Lib "msvcrt.dll" Alias "printf" (str as BytePtr,format as BytePtr, ...) As Long
-Declare Function printfd cdecl Lib "msvcrt.dll" Alias "printf" (format as BytePtr, v1 AS Double,...) As Long
-Declare Function sprintfvc cdecl Lib "msvcrt.dll" Alias "sprintf" (str as BytePtr,format as BytePtr, ...) As Long
-Declare Function sprintfd cdecl Lib "msvcrt.dll" Alias "sprintf" (str as BytePtr,format as BytePtr, d1 AS double,...) As Long
+Declare Function printfvc cdecl Lib "msvcrt.dll" Alias "printf" (str As BytePtr,format As BytePtr, ...) As Long
+Declare Function printfd cdecl Lib "msvcrt.dll" Alias "printf" (format As BytePtr, v1 As Double,...) As Long
+Declare Function sprintfvc cdecl Lib "msvcrt.dll" Alias "sprintf" (str As BytePtr,format As BytePtr, ...) As Long
+Declare Function sprintfd cdecl Lib "msvcrt.dll" Alias "sprintf" (str As BytePtr,format As BytePtr, d1 As double,...) As Long
 
 
 '---------------
@@ -34,12 +34,12 @@ Sub PumpMessage()
   	Wend
 EndSub
 
-Function GetDlgItemHex(hWnd AS HWND) AS Long
-	Dim buf as BytePtr,Length AS Long
+Function GetDlgItemHex(hWnd As HWND) As Long
+	Dim buf As BytePtr,Length As Long
 	Length=GetWindowTextLength(hWnd)
 	buf=calloc(Length+5)
 	GetWindowText(hWnd,buf,Length+1)
-	Dim i as Long,mode as Long
+	Dim i As Long,mode As Long
 	Do
 		if buf[i]=&H20 Then 
 			i++
@@ -52,60 +52,60 @@ Function GetDlgItemHex(hWnd AS HWND) AS Long
 		EndIf
 		ExitDo		
 	Loop
-	GetDlgItemHex=Val(buf+i) AS Long
+	GetDlgItemHex=Val(buf+i) As Long
 	free(buf)
 EndFunction
 
-Function GetDlgItemDouble(hWnd AS HWND) AS Double
-	Dim buf as BytePtr,Length AS Long
+Function GetDlgItemDouble(hWnd As HWND) As Double
+	Dim buf As BytePtr,Length As Long
 	Length=GetWindowTextLength(hWnd)
 	buf=calloc(Length+5)
 	GetWindowText(hWnd,buf,Length+1)
-	GetDlgItemDouble=Val(buf)' AS Long
+	GetDlgItemDouble=Val(buf)' As Long
 	free(buf)
 EndFunction
 
 'Auto Allocate
-Function GetWndTextAA(hWnd AS HWND) AS BytePtr
-	Dim buf as BytePtr,Length AS Long
+Function GetWndTextAA(hWnd As HWND) As BytePtr
+	Dim buf As BytePtr,Length As Long
 	Length=GetWindowTextLength(hWnd)
 	GetWndTextAA=calloc(Length+5)
 	GetWindowText(hWnd,GetWndTextAA,Length+1)
 EndFunction
 /*
 'エラーメッセージ表示
-Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword) As Long
+Function ErrMes(hOwner As HWND,Text As BytePtr,Title As BytePtr,Flag As Dword) As Long
 	SetForegroundWindow(hOwner)
 	MessageBeep(MB_ICONHAND)
 	ErrMes=MessageBox(hOwner,Text,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag)
 EndFunction*/
 
 'エラーメッセージ表示(TST用)
-Function ErrMes(hOwner AS HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(ErrCode As DWord) As Long
+Function ErrMes(hOwner As HWND,Text As BytePtr,Title As BytePtr,Flag As Dword)(ErrCode As DWord) As Long
 	SetForegroundWindow(hOwner)
 	MessageBeep(MB_ICONHAND)
 	if ErrCode=0 Then
-		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName AS DWord,Title AS DWord),MB_ICONERROR Or Flag)
+		ErrMes=MessageBox(hOwner,Text,sprintfStr("%s - %s",ProgramName As DWord,Title As DWord),MB_ICONERROR Or Flag)
 	'	DBM(Text)
 	Else
-		Dim SysErrMes AS BytePtr
+		Dim SysErrMes As BytePtr
 		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, _
   			NULL, ErrCode, LANG_USER_DEFAULT, VarPtr(SysErrMes), 0, NULL)
-		ErrMes=MessageBoxf(hOwner,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag,ex"%s\nErrCode : %d\n%s",Text As DWord,ErrCode,SysErrMes AS DWord)
+		ErrMes=MessageBoxf(hOwner,ProgramName+" - "+MakeStr(Title),MB_ICONERROR Or Flag,ex"%s\nErrCode : %d\n%s",Text As DWord,ErrCode,SysErrMes As DWord)
 		free(SysErrMes)
 	EndIf
 EndFunction
 
 'printfのMessageBox版
-Function MessageBoxf(hWnd AS HWND,lpCaption AS BytePtr,uType AS DWord,lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) AS Long
+Function MessageBoxf(hWnd As HWND,lpCaption As BytePtr,uType As DWord,lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) As Long
 	Dim buf[1024] As Byte	'wsprintfがそもそも1024バイトしか対応してない
 	wsprintf(buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	MessageBoxf=MessageBox(hWnd,buf,lpCaption,uType)
 EndFunction
 
 'EXEC 終了コード取得
-Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
-	Dim si AS STARTUPINFO 
+Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) As Long
+	Dim si As STARTUPINFO 
 	Dim pi As PROCESS_INFORMATION
 	Dim Child As HANDLE
 	Dim r As DWORD
@@ -141,7 +141,7 @@ Function RunAndGetExitCode(App As BytePtr,CmdLine As BytePtr) AS Long
 EndFunction
 
 ' requires InitCommonControls()
-Function CreateTooltip(hOwner AS HWND, hTooltip As *HANDLE, stTool As *TOOLINFO, text As BytePtr) AS BOOL
+Function CreateTooltip(hOwner As HWND, hTooltip As *HANDLE, stTool As *TOOLINFO, text As BytePtr) As BOOL
 	SetDWord(hTooltip,_
 		CreateWindowEx( 0 , TOOLTIPS_CLASS ,_
 			NULL , TTS_ALWAYSTIP ,_
@@ -163,12 +163,26 @@ Function CreateTooltip(hOwner AS HWND, hTooltip As *HANDLE, stTool As *TOOLINFO,
 
 End Function
 
+
+Function GetCheckBox(Ctrl As HWND) As Byte
+	If SendMessage(Ctrl,BM_GETCHECK,0,0) = BST_CHECKED then
+		GetCheckBox=TRUE
+	Else
+		GetCheckBox=FALSE
+	End If
+End Function
+
+Function SetCheckBox(Ctrl As HWND,bValue As BOOL) As Byte
+	SendMessage(Ctrl,BM_SETCHECK,bValue,bValue)
+End Function
+
+
 '----------------------
 '		Binaly
 '----------------------
 
-Function isSameBin(dat1 AS BytePtr, dat2 AS BytePtr,length aS DWord) AS BOOL
-	Dim i  AS DWord
+Function isSameBin(dat1 As BytePtr, dat2 As BytePtr,length As DWord) As BOOL
+	Dim i  As DWord
 	For i = 0 To length-1
 		if dat1[i]<>dat2[i] Then
 			isSameBin=FALSE
@@ -209,7 +223,7 @@ Function Str2Dw(Data As BytePtr) As DWORD
 EndFunction
 
 Function Dw2Str(Data As DWORD) As String
-	Dim Str[4] As Byte, i AS Long
+	Dim Str[4] As Byte, i As Long
 	memcpy(Str,VarPtr(Data),4)
 	For i = 0 To 3
 		if Str[i] < &H20 Then Str[i]=&H20
@@ -219,7 +233,7 @@ Function Dw2Str(Data As DWORD) As String
 EndFunction
 
 'InStrのバイナリ版
-Function InByteBin(Data As BytePtr,Size As DWORD,Bytes As Byte)(Jump AS Long) As Long
+Function InByteBin(Data As BytePtr,Size As DWORD,Bytes As Byte)(Jump As Long) As Long
 	Dim i As DWORD,tmp As Byte
 	if Jump<>0 then i=Jump
 	Do
@@ -229,11 +243,11 @@ Function InByteBin(Data As BytePtr,Size As DWORD,Bytes As Byte)(Jump AS Long) As
 	Loop
 EndFunction
 
-Function SwapWord(val AS Word) AS Word
+Function SwapWord(val As Word) As Word
 	SwapWord = ((val<<8) And &HFF00) Or ((val>>8) And &H00FF) 
 End Function
 
-Function ReverseDWord(val As DWord) AS DWord
+Function ReverseDWord(val As DWord) As DWord
 	'ABCD
 	'D  D	; << 3
 	' CC	; << 1
@@ -248,32 +262,56 @@ EndFunction
 '--------------
 
 
-Function Wide2Ansi(utf16 AS WordPtr) AS BytePtr
-'Function UTF16ToSJIS(utf16 AS WordPtr) AS BytePtr
-	Dim l AS DWord
+Function Wide2Ansi(utf16 As WordPtr) As BytePtr
+'Function UTF16ToSJIS(utf16 As WordPtr) As BytePtr
+	Dim l As DWord
    ' UnicodeからShift-JISに変換
    l=WideCharToMultiByte(CP_ACP, 0, utf16, -1, 0, 0, 0, 0)
    Wide2Ansi=calloc(l)
    WideCharToMultiByte(CP_ACP, 0, utf16, -1, Wide2Ansi, l, 0, 0)
 End Function
 
-Function Ansi2Wide(ansi AS BytePtr) AS WordPtr
+Function Wide2AnsiEx(wideStr As WordPtr, ansiStr As BytePtr, ansiLen As Long) As DWord
+	Dim l As DWord
+	' Todo: Impl Local Buffer
+  	' UnicodeからShift-JISに変換(勝手にmallocしない版）
+  	l=WideCharToMultiByte(CP_ACP, 0, wideStr, -1, 0, 0, 0, 0)
+	if ansiLen <= l then l = ansiLen
+	Wide2AnsiEx = WideCharToMultiByte(CP_ACP, 0, wideStr, -1, ansiStr, l, 0, 0)
+End Function
+
+Function Ansi2Wide(ansi As BytePtr) As WordPtr
 	Dim l As Long
 	l=MultiByteToWideChar(CP_ACP, 0, ansi, -1, NULL, 0)
-	Ansi2Wide=calloc(l*3)
+	Ansi2Wide=calloc(l*2+4)
 	MultiByteToWideChar(CP_ACP, 0, ansi, -1, Ansi2Wide, l)
 End Function
 
-Function UTF8ToUnicode(utf8Str AS BytePtr) As BytePtr
+Function Ansi2Wide_AutoAlloc(ansi As BytePtr, wide As *WordPtr) As Long
+	Dim l As Long, pwide As WordPtr
+	l=MultiByteToWideChar(CP_ACP, 0, ansi, -1, NULL, 0)
+	pwide = malloc(l*2+2)
+	Ansi2Wide_AutoAlloc = MultiByteToWideChar(CP_ACP, 0, ansi, -1, pwide, l)
+	SetDWord(wide, pwide)
+End Function
+
+' Note: CP_UTF8 is supported Windows 98/Me, Windows NT 4.0 and later
+Function UTF8ToUnicode(utf8Str As BytePtr) As BytePtr
 	Dim l As Long
 	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str As WordPtr, -1, NULL, 0)
 	UTF8ToUnicode=calloc(l*3)
 	MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, UTF8ToUnicode, l)
 End Function
 
-Function UTF8ToSJIS(utf8Str AS BytePtr) As BytePtr
-	Dim l As Long,uni AS BytePtr
+' Note: CP_UTF8 is supported Windows 98/Me, Windows NT 4.0 and later
+Function UTF8ToSJIS(utf8Str As BytePtr) As BytePtr
+	Dim l As Long,uni As BytePtr
 	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0)
+	if l=0 then
+		UTF8ToSJIS=calloc(64)
+		wsprintf(UTF8ToSJIS, "[Error] UTF8ToSJIS fail. GLE=%d", GetLastError())
+		ExitFunction
+	End If
 	uni=calloc(l*3)
 	UTF8ToSJIS=calloc(l*3)
 	MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, uni, l)
@@ -281,6 +319,7 @@ Function UTF8ToSJIS(utf8Str AS BytePtr) As BytePtr
 	free(uni)
 End Function
 
+' Note: CP_UTF8 is supported Windows 98/Me, Windows NT 4.0 and later
 Function UTF8toSJIS_Str(source As BytePtr) As String
    Dim u2s As BytePtr
    Dim u2s_out As BytePtr
@@ -307,7 +346,7 @@ Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As D
 	Dim tLen As DWORD'(,sLen As DWORD
 	Dim i As DWORD,j As Long,k As Long
 	Dim letSkip As Byte, letLast As Byte
-	Dim SP AS Long
+	Dim SP As Long
 	tLen=lstrlen(Text)
 	if tLen=0 then 	SerchTextLine=FALSE:	ExitFunction
 	For i=0 To 255 : Skip[i]=tLen :	Next i
@@ -345,8 +384,8 @@ Function SerchTextLine(Src As BytePtr,Text As BytePtr,sLen As DWORD,isFirst As D
 EndFunction
 
 '未デバッグ
-Function FindStr(text AS BytePtr,size aS DWord,target AS BytePtr) aS Long
-	Dim i AS Long,tarLen AS Long
+Function FindStr(text As BytePtr,size As DWord,target As BytePtr) As Long
+	Dim i As Long,tarLen As Long
 	tarLen=lstrlen(target)
 
 	' [最適化]4バイト以上ある場合はCompareガードをDWordで比較する
@@ -394,7 +433,7 @@ End Function
 
 'この関数は作り直したほうがいい
 Function InStrByte(Data As BytePtr,Serch As Byte,DataSize As DWORD) As Long
-	Dim i as DWORD,si As Dword, sLen As Long
+	Dim i As DWORD,si As Dword, sLen As Long
 	Do
 		if Data[i]=Serch then	InStrByte=i	: ExitDo
 		if i=DataSize then
@@ -407,35 +446,58 @@ EndFunction
 
 'APIを使った高速バージョンのダブルクォーテーション抜き
 Function DelDQ(Text As BytePtr) As BytePtr
-	Dim tmp[MAX_PATH] AS Byte
+	Dim tmp[MAX_PATH] As Byte
 	lstrcpy(tmp,Text)
 	PathRemoveBlanks(tmp)
 	PathUnquoteSpaces(tmp)
 
-	Dim txlen AS DWord
+	Dim txlen As DWord
 	txlen=lstrlen(tmp)
 	DelDQ=calloc(txlen+2)
 	memcpy(DelDQ,tmp,txlen+1)
 EndFunction
 
 Function DelDQW(Text As WordPtr) As WordPtr
-	Dim tmp[MAX_PATH] AS Word
-	lstrcpyW(tmp,Text)
+	Dim tmp[MAX_PATH] As Word
+	debug
+	PrintPtr(ex"lstrcpy\n")
+	wcscpy(tmp,Text)
+	PrintPtr(ex"blank\n")
 	PathRemoveBlanksW(tmp)
+	PrintPtr(ex"unq\n")
 	PathUnquoteSpacesW(tmp)
+		Dump(tmp, 4096)
 
-	Dim txlen AS DWord
+	Dim txlen As DWord
 	txlen=lstrlenW(tmp)
 	DelDQW=calloc(txlen*2+4)
 	memcpy(DelDQW,tmp,txlen*2+2)
 EndFunction
 
+' DelDqExW, Win95+IE4 required
+Function NormalizePathW_AutoAlloc(Text As WordPtr, newTextBuffer As *WordPtr) As Long
+	Dim tmp As WordPtr
+	Dim txlen As DWord
+
+	'copy text
+	txlen = lstrlenW(Text)
+	tmp   = malloc(txlen*2+2)
+	memcpy(tmp,Text,txlen*2+2) '+2 = null cahr
+
+	' normalize
+	PathRemoveBlanksW(tmp)
+	PathUnquoteSpacesW(tmp)
+
+	SetDWord(newTextBuffer, tmp)
+	NormalizePathW_AutoAlloc = txlen
+EndFunction
+
 'LF,CR -> CRLF	戻り値は別メモリなので各自開放すること
 Function ConvCRLF(Text As *Byte) As BytePtr
 	Dim ti As Long
-	dim ci as long
-	Dim l as Long
-	Dim lp as Long
+	dim ci As long
+	Dim l As Long
+	Dim lp As Long
 	Dim CRLFD As *Byte
 
 	ti=0
@@ -484,7 +546,7 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 EndFunction
 
 'strcmpの文字数指定バージョン
-Function win_strncmpi(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
+Function win_strncmpi(str1 As BytePtr,str2 As BytePtr,Length As DWord) As BOOL
 	if CompareString(LOCALE_SYSTEM_DEFAULT,NORM_IGNORECASE,str1,Length,str2,Length) = CSTR_EQUAL Then
 		win_strncmpi=TRUE
 	Else
@@ -492,7 +554,7 @@ Function win_strncmpi(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
 	EndIf
 EndFunction
 
-Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
+Function win_strncmp(str1 As BytePtr,str2 As BytePtr,Length As DWord) As BOOL
 	if CompareString(LOCALE_SYSTEM_DEFAULT,0,str1,Length,str2,Length) = CSTR_EQUAL Then
 		win_strncmp=TRUE
 	Else
@@ -501,8 +563,8 @@ Function win_strncmp(str1 AS BytePtr,str2 AS BytePtr,Length AS DWord) AS BOOL
 EndFunction
 
 'ファイルパスが正しいかチェック
-Function IsFilePath(FilePath AS BytePtr) As BOOL
-	Dim hFile AS HANDLE,dFilePath As BytePtr
+Function IsFilePath(FilePath As BytePtr) As BOOL
+	Dim hFile As HANDLE,dFilePath As BytePtr
 	if FilePath[0]=&H22 Then 
 		dFilePath=DelDQ(FilePath)
 	Else
@@ -518,16 +580,28 @@ Function IsFilePath(FilePath AS BytePtr) As BOOL
 	if FilePath<>dFilePath Then free(dFilePath)
 EndFunction
 
+Sub EscapeForFilePath(inout As BytePtr)
+	Dim i As Long, check As Long
+	Do
+		if inout[i]=0 then exitdo			
+		check = PathGetCharType(inout[i])
+		if check=GCT_INVALID or (check And (GCT_SEPARATOR or GCT_WILD)) then
+			inout[i]=GetByte("_")
+		endif
+		i++
+	Loop
+End Sub
+
 '標準Windows
-Function sprintfStr(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) AS String
-	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
+Function sprintfStr(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) As String
+	Dim Buf[PRINTF_BUFFER] As Byte,ret As Long
 	ret=wsprintf(Buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	sprintfStr=MakeStr(Buf)
 EndFunction
 
 '使うとVCランタイム要求になる
-Function doubleToFormatStr(lpFormat As BytePtr)(a As Double) AS String
-	Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long
+Function doubleToFormatStr(lpFormat As BytePtr)(a As Double) As String
+	Dim Buf[PRINTF_BUFFER] As Byte,ret As Long
 	ret=sprintfd(Buf,lpFormat,a)
 	doubleToFormatStr=MakeStr(Buf)
 EndFunction
@@ -536,13 +610,13 @@ EndFunction
 ' ファイルの容量などを単位付き文字列にする関数(64bit対応)
 ' =========================
 Const DC2T_BUFFER_SIZE = 16
-Function DataCap2Text(val AS QWord, text AS BytePtr, length AS DWord)(isLastDigit AS BOOL) AS BytePtr
-	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+Function DataCap2Text(val As QWord, text As BytePtr, length As DWord)(isLastDigit As BOOL) As BytePtr
+	Dim buffer[DC2T_BUFFER_SIZE-1] As Byte
 
 	Const DC2T_UNIT_IDX_COUNT = 4
 	Dim unitTable[DC2T_UNIT_IDX_COUNT] = ["Byte", "KB", "MB", "GB", "TB"/*, "PB", "EB"*/] As BytePtr
-	Dim unitIndex AS Long
-	Dim lastDigit AS Long
+	Dim unitIndex As Long
+	Dim lastDigit As Long
 	Dim size As QWord
 	Dim sign As BytePtr
 
@@ -565,7 +639,7 @@ Function DataCap2Text(val AS QWord, text AS BytePtr, length AS DWord)(isLastDigi
 	Loop
 
 	'QWordをcdeclの可変長引数に突っ込むと死ぬので
-	Dim dwSize AS DWord
+	Dim dwSize As DWord
 	dwSize = size
 	if lastDigit=0 Or isLastDigit=FALSE Then
 		wsprintf(buffer, ex"%s%d %s",sign,dwSize,unitTable[unitIndex])
@@ -582,27 +656,27 @@ Function DataCap2Text(val AS QWord, text AS BytePtr, length AS DWord)(isLastDigi
 End Function
 
 ' String型
-Function DataCap2Text_Str(val AS QWord)(isLastDigit AS BOOL) As String
-	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+Function DataCap2Text_Str(val As QWord)(isLastDigit As BOOL) As String
+	Dim buffer[DC2T_BUFFER_SIZE-1] As Byte
 	DataCap2Text(val,buffer,DC2T_BUFFER_SIZE,isLastDigit)
 	DataCap2Text_Str=MakeStr(buffer)
 End Function
 
 ' Print
-Sub PrintDataCap(val AS QWord)(isLastDigit AS BOOL)
-	Dim buffer[DC2T_BUFFER_SIZE-1] AS Byte
+Sub PrintDataCap(val As QWord)(isLastDigit As BOOL)
+	Dim buffer[DC2T_BUFFER_SIZE-1] As Byte
 	DataCap2Text(val,buffer,DC2T_BUFFER_SIZE,isLastDigit)
 	PrintPtr(buffer)
 End Sub
 
 
 '(文字列, 変換結果を入れるところ, 基数, 1024か1000か)
-Function rcAsciiToInt(_str AS BytePtr,result_num AS *Long)(_base AS DWord,b1024 AS BOOL) AS BOOL
-	Dim ci AS DWord, ni AS DWord 'char index, num index
-	Dim fNegative AS BOOL, fFixedBase AS BOOL
-	Dim base AS DWord, siZoom AS DWord
-	Dim num AS DWord
-	Dim state AS DWord
+Function rcAsciiToInt(_str As BytePtr,result_num As *Long)(_base As DWord,b1024 As BOOL) As BOOL
+	Dim ci As DWord, ni As DWord 'char index, num index
+	Dim fNegative As BOOL, fFixedBase As BOOL
+	Dim base As DWord, siZoom As DWord
+	Dim num As DWord
+	Dim state As DWord
 	Dim str As BytePtr
 
 	'基数
@@ -738,7 +812,7 @@ Function URLDecode(pFrom As BytePtr) As BytePtr
 
    Do 
 		if pFrom[i]=&H25 Then '% then
-			ASCII=Hex2Dec(Chr$(pFrom[i+1])+Chr$(pFrom[i+2])) AS Byte
+			ASCII=Hex2Dec(Chr$(pFrom[i+1])+Chr$(pFrom[i+2])) As Byte
 			lstrcat(URLDecode , Chr$(ASCII))
 			i=i+2
 		Else
@@ -757,12 +831,12 @@ End Function
 '-------------------------------------
 Type DLL_FUNCTION_CELL
 	'関数ポインタを格納するための変数へのポインタ
-	ptr AS VoidPtr
+	ptr As VoidPtr
 	'DLLから探す関数名
-	alias AS BytePtr
+	alias As BytePtr
 EndType
 
-Function GetSystemErrorMessage(ByRef textBuffer AS BytePtr, ErrCode AS DWord) AS DWord
+Function GetSystemErrorMessage(ByRef textBuffer As BytePtr, ErrCode As DWord) As DWord
 	GetSystemErrorMessage = _
 		FormatMessage( _
 				FORMAT_MESSAGE_ALLOCATE_BUFFER or FORMAT_MESSAGE_FROM_SYSTEM or FORMAT_MESSAGE_IGNORE_INSERTS, _
@@ -770,9 +844,9 @@ Function GetSystemErrorMessage(ByRef textBuffer AS BytePtr, ErrCode AS DWord) AS
 		)
 End Function
 
-Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,count AS Long, bMsgOutput AS BOOL)(opt_text AS BytePtr,hWnd AS HWND) As HINSTANCE
-	Dim hDll AS HINSTANCE
-	Dim mainErrMes AS BytePtr
+Function DynamicDllLoader(DllName As BytePtr,func_list As *DLL_FUNCTION_CELL,count As Long, bMsgOutput As BOOL)(opt_text As BytePtr,hWnd As HWND) As HINSTANCE
+	Dim hDll As HINSTANCE
+	Dim mainErrMes As BytePtr
 
 	' DLLロード
 	hDll=LoadLibrary(DllName)
@@ -790,7 +864,7 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 	EndIf
 
 	' 関数ロードループ
-	Dim i AS Long
+	Dim i As Long
 	For i = 0 To count-1
 		' 代入先ポインタチェック
 		if func_list[i].ptr=0 or func_list[i].alias=0 Then Goto *DDL_RETURN_ERROR
@@ -823,7 +897,7 @@ Function DynamicDllLoader(DllName AS BytePtr,func_list AS *DLL_FUNCTION_CELL,cou
 		FreeLibrary(hDll)
 
 	if mainErrMes<>NULL Then 
-		Dim SysErrMes AS BytePtr, SysErrMesLen AS DWord
+		Dim SysErrMes As BytePtr, SysErrMesLen As DWord
 		' システムエラーメッセージを取得
 		SysErrMesLen = GetSystemErrorMessage(ByVal VarPtr(SysErrMes),GetLastError())
 
@@ -926,8 +1000,8 @@ Function arg(a As ARGT,b As ARGT,c As ARGT ,d As ARGT ,e As ARGT ,f As ARGT ,g A
 End Function
 
 'printfはこちらを推奨だが、パフォーマンス対して変わらないのでセーフとする
-Dim _print_buf[1024] As Byte,_print_len AS Long
-Sub printf2(format AS BytePtr,arglist AS *ARGT)
+Dim _print_buf[1024] As Byte,_print_len As Long
+Sub printf2(format As BytePtr,arglist As *ARGT)
 	_print_len=wvsprintf(_print_buf,format,arglist)
 	PrintPtr(_print_buf,_print_len)
 Endsub
@@ -936,13 +1010,13 @@ Endsub
 '		Console library
 '------------------------------
 
-Function GetConsoleCursorDw() AS DWord
+Function GetConsoleCursorDw() As DWord
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
 	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos))
 	memcpy(VarPtr(GetConsoleCursor),CmdPos.dwCursorPosition,sizeof(DWord))
 EndFunction
 
-SUb GetConsoleCursor(ByRef pos AS COORD)
+SUb GetConsoleCursor(ByRef pos As COORD)
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
 	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos))
 	memcpy(VarPtr(pos),VarPtr(CmdPos.dwCursorPosition),sizeof(DWord))
@@ -955,9 +1029,9 @@ Sub ConsoleReturnLine()
 	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
 EndSub
 
-Sub ConsoleLocateRelative(x As Long,y AS Long)
+Sub ConsoleLocateRelative(x As Long,y As Long)
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
-	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) AS DWORD)
+	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) As DWORD)
 	CmdPos.dwCursorPosition.X += x
 	CmdPos.dwCursorPosition.Y += y
 	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
@@ -965,7 +1039,7 @@ EndSub
 
 Sub ConsoleClearCurrentLine()
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
-	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) AS DWORD)
+	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos) As DWORD)
 	CmdPos.dwCursorPosition.X = 0
 	SetConsoleCursorPosition(_System_hConsoleOut,GetDWord(VarPtr(CmdPos.dwCursorPosition)))	
 	print String$(CmdPos.dwSize.X," ")
@@ -973,7 +1047,7 @@ Sub ConsoleClearCurrentLine()
 
 EndSub
 
-Sub ConsoleReturnChar(count AS Long)
+Sub ConsoleReturnChar(count As Long)
 	Dim CmdPos As CONSOLE_SCREEN_BUFFER_INFO
 	GetConsoleScreenBufferInfo (_System_hConsoleOut,VarPtr(CmdPos))
 	CmdPos.dwCursorPosition.X-=count
@@ -987,8 +1061,8 @@ Enum ABRLC_COLOR
 	CC_RED		= &H04
 End Enum
 
-Sub SetConsoleColor(color AS ABRLC_COLOR)
-	Dim attr AS Word
+Sub SetConsoleColor(color As ABRLC_COLOR)
+	Dim attr As Word
 
 	if color=CC_DEFAULT Then 
 		attr=CC_BLUE or CC_GREEN or CC_RED
@@ -1002,7 +1076,7 @@ Sub SetConsoleColor(color AS ABRLC_COLOR)
 End Sub
 
 'コンソールのウィンドウハンドルを取得
-Function GetConsoleWndHandle() AS HANDLE
+Function GetConsoleWndHandle() As HANDLE
 	dim hConsole As HWND
 	SetConsoleTitle("_FIND_STRING_RGBA_CRT_") 
 	Sleep(40) 
@@ -1010,20 +1084,20 @@ Function GetConsoleWndHandle() AS HANDLE
 EndFunction
 
 'コンソールのアイコンを変更
-Sub SetConsoleIcon(IconID AS DWord)
+Sub SetConsoleIcon(IconID As DWord)
 	SendMessage(GetConsoleWndHandle(),WM_SETICON,ICON_SMALL,LoadImage(GetModuleHandle(0),IconID As BytePtr,IMAGE_ICON,GetSystemMetrics(SM_CXSMICON),GetSystemMetrics(SM_CYSMICON),LR_DEFAULTCOLOR) As Long)
 EndSub
 
 Const PRINTF_BUFFER = 1024
 Sub printf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,
 	f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-	'Dim Buf[PRINTF_BUFFER] AS Byte,ret AS Long	
+	'Dim Buf[PRINTF_BUFFER] As Byte,ret As Long	
 	_print_len=wsprintf(_print_buf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	PrintPtr(_print_buf,_print_len)
 EndSub
 
-Sub PrintPtr(Text As BytePtr)(Length AS Long)
-	Dim a AS Long
+Sub PrintPtr(Text As BytePtr)(Length As Long)
+	Dim a As Long
 	if Length=0 then 
 		a=lstrlen(Text)
 	Else
@@ -1034,12 +1108,12 @@ Sub PrintPtr(Text As BytePtr)(Length AS Long)
 Endsub
 
 Sub PauseConsole()
-	Dim buf AS DWord
+	Dim buf As DWord
 	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),ex"[PRESS ANY KEY]\0",16,VarPtr(buf),ByVal NULL)
 	ReadFile(GetStdHandle(STD_INPUT_HANDLE),VarPtr(buf),1,VarPtr(buf),ByVal NULL)
 EndSub
 
-Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader AS BOOL) AS DWORD
+Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader As BOOL) As DWORD
 	Dim Tmp[&H20] As Byte,i As Long,Adr As DWORD
 	
 	'SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED)
@@ -1083,7 +1157,7 @@ Enum PRINT_HIGHLIGHT_COLOR
 	PH_SUCCESS = &H000A
 End Enum
 
-Sub colorPrint(color As DWord,str AS BytePtr)
+Sub colorPrint(color As DWord,str As BytePtr)
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE) , color )
 	PrintPtr(str)
 	SetConsoleColor(CC_DEFAULT)
@@ -1095,8 +1169,8 @@ End Sub
 '	Device 
 '---------------
 Const MAXDWORD=&HFFFFFFFF
-Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
-	Dim ct AS COMMTIMEOUTS
+Function SetIOTimeOut(hComPortPort As HANDLE,TimeOut As DWord) As Byte
+	Dim ct As COMMTIMEOUTS
 	ct.ReadIntervalTimeout=100		'連続受信タイムアウト
 	ct.ReadTotalTimeoutMultiplier=10
 	ct.ReadTotalTimeoutConstant=TimeOut	'Constant+Multiplier*バイト数＝タイムアウト
@@ -1107,12 +1181,12 @@ Function SetIOTimeOut(hComPortPort AS HANDLE,TimeOut AS DWord) AS Byte
 EndFunction
 
 
-TypeDef ESP_CALLBACK_T = *Function(userdata As VoidPtr, PortName As BytePtr, FriendlyName AS BytePtr) AS Long
-Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_T, userdata As VoidPtr) As BOOL
+TypeDef ESP_CALLBACK_T = *Function(userdata As VoidPtr, PortName As BytePtr, FriendlyName As BytePtr) As Long
+Function EnumSerialPorts(setupapi As *SetupApiWrapper, callback As ESP_CALLBACK_T, userdata As VoidPtr) As BOOL
 	EnumSerialPorts=FALSE
 	Dim classGUID[0] As GUID
-	Dim DeviceInfoData AS SP_DEVINFO_DATA
-	Dim dwReqSize AS DWord
+	Dim DeviceInfoData As SP_DEVINFO_DATA
+	Dim dwReqSize As DWord
 
 	'個々のコードはWin2000以降専用
 
@@ -1122,19 +1196,19 @@ Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_
 		PrintPtr("GetClass Error")
 	Endif
 
-	Dim hDevInfoSet AS HANDLE
+	Dim hDevInfoSet As HANDLE
 	hDevInfoSet = setupapi->SetupDiGetClassDevs(VarPtr(classGUID[0]), NULL, NULL, DIGCF_PRESENT OR DIGCF_PROFILE)
 	if hDevInfoSet = INVALID_HANDLE_VALUE Then ExitFunction
 	
 '	printf(ex"%s\n",GuidToText_calloc(classGUID))
 
 	'レジストリrエントリを走査
-	Dim EnumDeviceIndex AS Long
+	Dim EnumDeviceIndex As Long
 
 	Do
 		if setupapi->SetupDiEnumDeviceInfo(hDevInfoSet, EnumDeviceIndex, VarPtr(DeviceInfoData)) = FALSE Then ExitDo
 
-		Dim regFriendlyName[MAX_PATH] AS Byte
+		Dim regFriendlyName[MAX_PATH] As Byte
 		Dim dwPropType As DWord
 
 		'DevInfoDataから"USB-SERIAL CH340 (COM3)"などのフレンドリーネームを取得
@@ -1149,13 +1223,13 @@ Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_
 		) = FALSE Then ExitFunction
 
 		' COM3　などのポート名を取得
-		Dim hKey AS HANDLE
+		Dim hKey As HANDLE
 		hKey = setupapi->SetupDiOpenDevRegKey(hDevInfoSet,VarPtr(DeviceInfoData),
 				                            DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_READ)
 		if hKey = INVALID_HANDLE_VALUE Then ExitFunction
 				
-		Dim lpType AS DWord, regReadSize AS DWord
-		Dim portName[10] AS Byte
+		Dim lpType As DWord, regReadSize As DWord
+		Dim portName[10] As Byte
 		regReadSize=10
 		RegQueryValueEx(hKey,("PortName"),NULL,VarPtr(lpType),portName,VarPtr(regReadSize))
 		portName[10]=0
@@ -1172,7 +1246,7 @@ Function EnumSerialPorts(setupapi AS *SetupApiWrapper, callback AS ESP_CALLBACK_
 EndFunction
 
 Const GUID_TEXT_SIZE = 40
-Function GuidToText_calloc(guid AS *GUID) AS BytePtr
+Function GuidToText_calloc(guid As *GUID) As BytePtr
 	GuidToText_calloc=calloc(GUID_TEXT_SIZE)
 	wsprintf(GuidToText_calloc, "{%08X-%04X-%04X-%04X-%04X%08X}", _
 		guid->Data1,guid->Data2,guid->Data3,SwapWord(GetWord(guid->Data4)), _
@@ -1180,14 +1254,14 @@ Function GuidToText_calloc(guid AS *GUID) AS BytePtr
 	)
 End Function
 
-Function GetComBaudrate(hSerial AS HANDLE) AS DWord
+Function GetComBaudrate(hSerial As HANDLE) As DWord
 	Dim dcb As DCB_SETTING
 	GetCommState(hSerial, dcb)
 	GetComBaudrate = dcb.BaudRate
 End Function
 
-Function SetComTimeOut(hSerialPort AS HANDLE, TimeOut AS DWord) AS Byte
-	Dim ct AS COMMTIMEOUTS
+Function SetComTimeOut(hSerialPort As HANDLE, TimeOut As DWord) As Byte
+	Dim ct As COMMTIMEOUTS
 	ct.ReadIntervalTimeout = TimeOut '連続受信タイムアウト
 	ct.ReadTotalTimeoutConstant = TimeOut 'Constant+Multiplier*バイト数＝タイムアウト
 	ct.ReadTotalTimeoutMultiplier = 20
@@ -1197,7 +1271,7 @@ Function SetComTimeOut(hSerialPort AS HANDLE, TimeOut AS DWord) AS Byte
 	SetCommTimeouts(hSerialPort, VarPtr(ct))
 End Function
 
-Sub ChangeComBaudrate(hSerial AS HANDLE, rate AS DWord)
+Sub ChangeComBaudrate(hSerial As HANDLE, rate As DWord)
 	Dim dcb As DCB_SETTING
 	GetCommState(hSerial, dcb)
 	dcb.BaudRate = rate '転送速度の指定
@@ -1212,8 +1286,8 @@ End Sub
 '---------------
 '	Math
 '---------------
-Function isNan(value AS double) AS Double
-	Dim dw[1] AS DWord
+Function isNan(value As double) As Double
+	Dim dw[1] As DWord
 	memcpy(dw,VarPtr(value),8)
 
 	if (((dw[1])>>(20) And &H7FFF)=2047) And (dw[0] or (dw[1] And &H0007FFFF))>0 Then
@@ -1221,9 +1295,9 @@ Function isNan(value AS double) AS Double
 	End If
 End Function
 
-Function Nan() AS Double
-	Dim DWORD_H=&H7FF55577 AS DWord
-'	Dim DWORD_L=&HFF005599 AS DWord
+Function Nan() As Double
+	Dim DWORD_H=&H7FF55577 As DWord
+'	Dim DWORD_L=&HFF005599 As DWord
 	memcpy(VarPtr(Nan)+4,VarPtr(DWORD_H),4)
 '	memcpy(VarPtr(Nan)  ,VarPtr(DWORD_L),4)
 End Function
@@ -1233,13 +1307,13 @@ End Function
  *	inValue: 関数へ渡す値
  *	return = 微分係数
  */
-Typedef FN_PROTO = *Function(x AS Double) AS Double
-Function bibun(_func AS FN_PROTO,inValue AS Double) AS Double
+Typedef FN_PROTO = *Function(x As Double) As Double
+Function bibun(_func As FN_PROTO,inValue As Double) As Double
 	bibun = (_func(inValue + EPS) - _func(inValue)) / EPS
 End Function
 
-Function newton(x1 AS double,func AS FN_PROTO) AS double
-	Dim x AS double,xp AS double,fdash AS double,  c AS Long
+Function newton(x1 As double,func As FN_PROTO) As double
+	Dim x As double,xp As double,fdash As double,  c As Long
 	x=x1
 	Do
 		xp=x
@@ -1254,10 +1328,10 @@ Function newton(x1 AS double,func AS FN_PROTO) AS double
 	newton=x
 End Function
 
-Function GetKaiLU(ByRef A AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
-	Dim L AS *ABMatrix,U AS *ABMatrix
-	Dim y AS *ABMatrix,tmp AS *ABMatrix
-	Dim sigma AS DOUBLE,i as Long,k AS Long
+Function GetKaiLU(ByRef A As ABMatrix,ByRef b As ABMatrix) As *ABMatrix
+	Dim L As *ABMatrix,U As *ABMatrix
+	Dim y As *ABMatrix,tmp As *ABMatrix
+	Dim sigma As DOUBLE,i As Long,k As Long
 	x=new ABMatrix(b.y,b.x)
 	y=new ABMatrix(b.y,b.x)
 
@@ -1283,10 +1357,10 @@ Function GetKaiLU(ByRef A AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
 End Function
 
 
-Function MulMatrix(ByRef a AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
-	Dim ix AS Long,iy AS Long,is AS Long
-	Dim sum AS double
-	Dim ret AS *ABMatrix
+Function MulMatrix(ByRef a As ABMatrix,ByRef b As ABMatrix) As *ABMatrix
+	Dim ix As Long,iy As Long,is As Long
+	Dim sum As double
+	Dim ret As *ABMatrix
 	ret=new ABMatrix(b.y,b.x)
 
 	For iy=0 To ret->y-1
@@ -1301,9 +1375,9 @@ Function MulMatrix(ByRef a AS ABMatrix,ByRef b AS ABMatrix) AS *ABMatrix
 	MulMatrix=ret
 End Function
 
-Function InputMatrix()(Message AS BytePtr) AS *ABMatrix
-	Dim in AS String
-	Dim x AS Long,ox AS Long,i As Long, y AS Long,dr[20] AS *double
+Function InputMatrix()(Message As BytePtr) As *ABMatrix
+	Dim in As String
+	Dim x As Long,ox As Long,i As Long, y As Long,dr[20] As *double
 	if Message<>0 Then printf(ex"%s\n",Message)
 	Do
 		Input ">",in
@@ -1333,8 +1407,8 @@ Function InputMatrix()(Message AS BytePtr) AS *ABMatrix
 	Print
 End Function
 
-Function Str2DoubleAry(str AS BytePtr,ByRef count AS Long) AS *double	debug
-	Dim i aS Long,C AS Long
+Function Str2DoubleAry(str As BytePtr,ByRef count As Long) As *double	debug
+	Dim i As Long,C As Long
 	
 	count=0
 	if str=NULL then ExitFunction
@@ -1365,9 +1439,9 @@ Function Str2DoubleAry(str AS BytePtr,ByRef count AS Long) AS *double	debug
 	EndIf
 End Function
 
-Function CountChar(str AS BytePtr,chara AS Byte) AS Long
+Function CountChar(str As BytePtr,chara As Byte) As Long
 	if str=NULL then ExitFunction
-	Dim i aS Long,C AS Long
+	Dim i As Long,C As Long
 	Do
 		if str[i]=chara Then C++
 		if str[i]=0 Then ExitDo
@@ -1376,14 +1450,14 @@ Function CountChar(str AS BytePtr,chara AS Byte) AS Long
 	CountChar=C
 End Function
 
-Function GetOsMajorVersion() AS Long
+Function GetOsMajorVersion() As Long
 	Dim Ver As OSVERSIONINFO
 	Ver.dwOSVersionInfoSize=sizeof(OSVERSIONINFO)
 	GetVersionEx(Ver)
 	GetOsMajorVersion=Ver.dwMajorVersion
 End Function
 
-Function IsWin9x() AS Long
+Function IsWin9x() As Long
 	if GetOsMajorVersion() = 4 Then
 		IsWin9x=TRUE
 	Else
@@ -1401,9 +1475,9 @@ Class File
 Protected
 	hFile As HANDLE
 Public
-	path AS FilePath
-	Function _openFile(_Mode AS DWORD) AS BOOL
-		Dim CreateMode AS Dword
+	path As FilePath
+	Function _openFile(_Mode As DWORD) As BOOL
+		Dim CreateMode As Dword
 		If _Mode=GENERIC_READ then
 			CreateMode=OPEN_EXISTING
 		Elseif  _Mode=GENERIC_WRITE then
@@ -1422,17 +1496,17 @@ Public
 	EndFunction
 
 	
-	Function openFile(inPath As BytePtr,_Mode AS DWORD) AS BOOL
+	Function openFile(inPath As BytePtr,_Mode As DWORD) As BOOL
 		path.SetPath(inPath)
 		openFile=_openFile(_Mode)
 	End Function
 	
-/*	Function openFileW(inPath As WordPtr,_Mode AS DWORD) AS BOOL
+/*	Function openFileW(inPath As WordPtr,_Mode As DWORD) As BOOL
 		path.SetPath(inPath)
 		openFileW=_openFile(_Mode)
 	End Function
 */
-	Function read(dest AS BytePtr,size As DWord) AS Long
+	Function read(dest As BytePtr,size As DWord) As Long
 		Dim dwAB As BytePtr
 		read=ReadFile(hFile,dest,size,VarPtr(dwAB),ByVal NULL) As Long
 		If read=TRUE And dwAB=0 then
@@ -1440,59 +1514,59 @@ Public
 		ElseIf read=FALSE then
 			read=-2 As Long
 		Else
-			read=dwAB AS Long
+			read=dwAB As Long
 		EndIf
 	End Function
 
-	Function readDw() AS Long
+	Function readDw() As Long
 		read(VarPtr(readDw),sizeof(DWord))
 	End Function
 
-	Function write(source AS BytePtr,size As DWord) AS Long
+	Function write(source As BytePtr,size As DWord) As Long
 		WriteFile(hFile,source,size,VarPtr(write),ByVal NULL)
 	End Function
 
-	Function getFilePtr() AS DWord
+	Function getFilePtr() As DWord
 		getFilePtr=SetFilePointer(hFile,0,0,FILE_CURRENT)
 	EndFunction
 
 	'up to 4GB
-	Sub setFilePtr(fp AS DWord)(fpHigh AS DWord)
+	Sub setFilePtr(fp As DWord)(fpHigh As DWord)
 		'SetFilePointerの第3引数 lpDistanceToMoveHighをNULLにすると下位がLong扱いになる
 
 		SetFilePointer(hFile,fp,VarPtr(fpHigh),FILE_BEGIN)
 	End Sub
 
-	Sub addFilePtr(fp AS DWord)
+	Sub addFilePtr(fp As DWord)
 		SetFilePointer(hFile,fp,0,FILE_CURRENT)
 	End Sub
 
-	Function length() AS Long
+	Function length() As Long
 		if hFile = 0 Then length=0 : Exitfunction
 		length=GetFileSize(hFile,NULL)
 	EndFunction
 
-	Function lengthEx(ByRef highDWord AS DWord) AS Long
+	Function lengthEx(ByRef highDWord As DWord) As Long
 		if hFile = 0 Then length=0 : Exitfunction
 		length=GetFileSize(hFile, VarPtr(highDWord))
 	EndFunction
 
-	Function lengthQWord() AS QWord
+	Function lengthQWord() As QWord
 		if hFile = 0 Then lengthQWord=0 : Exitfunction
-		Dim lowDWord As DWord, highDWord AS DWord
+		Dim lowDWord As DWord, highDWord As DWord
 		lowDWord=GetFileSize(hFile, VarPtr(highDWord))
 		lengthQWord = lowDWord OR (highDWord As QWord)<<32
 	EndFunction
 
-	Function getHandle() AS HANDLE
+	Function getHandle() As HANDLE
 		getHandle=hFile
 	EndFunction
 
-	Sub setHandle(_handle AS HANDLE)
+	Sub setHandle(_handle As HANDLE)
 		hFile=_handle
 	End Sub
 	
-	Function getPath() AS BytePtr
+	Function getPath() As BytePtr
 		getPath=path.GetPath()
 	EndFunction
 
@@ -1503,69 +1577,76 @@ Public
 	End Sub
 End Class
 
-
 'ファイルパス用クラス
+'OS required: Win95 with IE4 later
 Class FilePathW
-Private
-	pathStr AS StringClassW
-	nullidx AS DWord
-	separator AS Word	' \
+Protected
+	pathStr As StringClassW
+	nullidx As DWord
+	separator As Word	' \
 Public
 
 	Sub FilePathW()
-		setPathSeparator(ex"\\\0")
+		setPathSeparator(ex"\\\0" As WordPtr)
+		SetPath(ex"\0" As WordPtr)
 	End Sub
 
-	Sub setPathSeparator(newSeparator as WordPtr)
+	Sub setPathSeparator(newSeparator As WordPtr)
 		separator=newSeparator[0]
 	End Sub
 
-	Sub setPathSeparatorChar(newSeparator as Word)
+	Sub setPathSeparatorChar(newSeparator As Word)
 		separator=newSeparator
 	End Sub
 
 	'ファイルかフォルダかはわからないけどパスがセットされた
 	Sub SetPath(path As WordPtr)
 		'ダブルクォーテーションを削除しつつメモリ確保＆格納
-		pathStr.set(DelDQW(path))
+		Dim nmlizePath As WordPtr
+		NormalizePathW_AutoAlloc(path, VarPtr(nmlizePath))
+		pathStr.set(nmlizePath)
+		free(nmlizePath)
+
 		nullidx=pathStr.length()
 	EndSub
 
-	Sub SetPathA(path AS BytePtr) 
-		Dim pathW AS WordPtr
-		pathW=Ansi2Wide(path)
+	Sub SetPathA(path As BytePtr) 
+		Dim pathW As WordPtr
+		Ansi2Wide_AutoAlloc(path, VarPtr(pathW))
 		SetPath(pathW)
 		free(pathW)
 	End Sub
 
-	Sub FileDlgSetupW(ofn As *OPENFILENAME,hWnd AS HWND,opt As DWord,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr)
+	Sub FileDlgSetupW(ofn As *OPENFILENAME,hWnd As HWND,opt As DWord,defFileName As WordPtr,defExt As WordPtr,extList As WordPtr)
 		'ファイルオープン構造体の初期化
 		ofn->lStructSize = sizeof(OPENFILENAME)
 		ofn->hwndOwner = hWnd
-		ofn->lpstrFilter = extList
+		ofn->lpstrFilter = extList As BytePtr
 		ofn->nFilterIndex = 0
 		ofn->nMaxFile = MAX_PATH
 		ofn->Flags=opt
-		ofn->lpstrDefExt=defExt
-		ofn->lpstrFile = calloc(MAX_PATH*2+4)
+		ofn->lpstrDefExt=defExt As BytePtr
+		ofn->lpstrFile = malloc(MAX_PATH*2+4)
 		if defFileName<>NULL Then _
-			lstrcpyW(ofn->lpstrFile,defFileName)
+			wcscpy(ofn->lpstrFile As WordPtr,defFileName)
 	End Sub
 
-	Function SaveFileDlg(hWnd AS HWND,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr) AS Long
-		Dim ofn AS OPENFILENAME
+	Function SaveFileDlg(hWnd As HWND,defFileName As WordPtr,defExt As WordPtr,extList As WordPtr) As Long
+		Dim ofn As OPENFILENAME
 		FileDlgSetupW(VarPtr(ofn),hWnd,OFN_OVERWRITEPROMPT,defFileName,defExt,extList)
-		GetSaveFileNameW(ofn)
-		SetPath(ofn.lpstrFile)
+		SaveFileDlg = GetSaveFileNameW(ofn)
+		if SaveFileDlg Then
+			SetPath(ofn.lpstrFile)
+		End If
 		free(ofn.lpstrFile)
 	End Function
 
-	Function OpenFileDlg(hWnd AS HWND,defFileName AS WordPtr,defExt AS WordPtr,extList As WordPtr) AS Long
-		Dim ofn AS OPENFILENAME
+	Function OpenFileDlg(hWnd As HWND,defFileName As WordPtr,defExt As WordPtr,extList As WordPtr) As Long
+		Dim ofn As OPENFILENAME
 		FileDlgSetupW(VarPtr(ofn),hWnd,OFN_OVERWRITEPROMPT,defFileName,defExt,extList)
 		GetOpenFileNameW(ofn)
 		
-		SetPath(ofn.lpstrFile)
+		SetPath(ofn.lpstrFile As WordPtr)
 		free(ofn.lpstrFile)
 	End Function
 
@@ -1597,7 +1678,7 @@ Public
 	
 	'拡張子削除
 	Sub deleteExtension()
-		Dim extPtr AS WordPtr
+		Dim extPtr As WordPtr
 		extPtr=PathFindExtensionW(pathStr.ptr)
 
 		if extPtr=NULL Then ExitSub
@@ -1607,51 +1688,73 @@ Public
 	End Sub
 
 	'文字列やファイル名など追加
-	Sub cat(text as WordPtr)
+	Sub cat(text As WordPtr)
 		pathStr.cat(text)
 	EndSub
 
 	'ファイル存在チェック
-	Function isExist() AS Long
+	Function isExist() As Long
 		isExist=PathFileExistsW(pathStr.ptr)
 	EndFunction
 
-	Function isDir() AS Long
+	Function isDir() As Long
 		if PathIsDirectoryW(pathStr.ptr) Then 
-			isDir=FALSE
-		Else
 			isDir=TRUE
+		Else
+			isDir=FALSE
 		EndIf
 	EndFunction
 
-	Function GetPathString() AS String
+	Function GetPathString() As String
 		GetPathString=pathStr.getString()
 	EndFunction
 
-	Function genAddedPath(additionalPath AS WordPtr) AS String
-		Dim tmp AS FilePathW
+	Function genAddedPath(additionalPath As WordPtr) As String
+		Dim tmp As FilePathW
 		tmp.PushFile(additionalPath)
 		genAddedPath=tmp.GetPathString()
 	EndFunction
 
-	Function GetPath() AS WordPtr
+	Function GetPath() As WordPtr
 		GetPath=pathStr.ptr
 	EndFunction
 
-	Function GetPathA() AS BytePtr
-		GetPathA=pathStr.GetAnsi()
+	Function CopyPathToBuf(dstText As WordPtr, dstLen As DWord) As DWord
+		CopyPathToBuf=pathStr.cpyTo(dstText, dstLen)
 	EndFunction
 
-	Function GetFileName() AS WordPtr
+	Function GetPathA() As String
+		GetPathA=MakeStr(pathStr.GetAnsi())
+	EndFunction
+
+	Function CopyPathToBufA(dstText As BytePtr, dstLen As DWord, useShortPathWhenNonAnsiPath As BOOL) As DWord
+		CopyPathToBufA=Wide2AnsiEx(pathStr.ptr, dstText, dstLen)
+		' Wide文字で表せないパスが来たら短いパス名に変換してごまかす
+		' 9xでは大体FAT32なので
+		if PathFileExists(dstText) <> TRUE And useShortPathWhenNonAnsiPath then
+			Dim lbuf[MAX_PATH] As Word
+			GetShortPathNameW(pathStr.ptr, lbuf, 4096)
+			Wide2AnsiEx(lbuf, dstText, dstLen)
+		End If
+	EndFunction
+
+	Function GetPathExA(dstText As *FilePath, useShortPathWhenNonAnsiPath As BOOL) As DWord
+		Const _GPEA_LBUF_LEN = MAX_PATH*2
+		Dim lbuf[_GPEA_LBUF_LEN] As Byte
+		GetPathExA = CopyPathToBufA(lbuf, _GPEA_LBUF_LEN, useShortPathWhenNonAnsiPath)
+		dstText->SetPath(lbuf)
+	EndFunction
+
+	Function GetFileName() As WordPtr
 		GetFileName=PathFindFileNameW(pathStr.ptr)
 	EndFunction
 
-	Function GetFileExt() AS WordPtr
+	Function GetFileExt() As WordPtr
 		GetFileExt=PathFindExtensionW(pathStr.ptr)
 	EndFunction
 
-	Function GetFileDirString() AS String
-		Dim tmp AS FilePathW
+	Function GetFileDirString() As String
+		Dim tmp As FilePathW
 		tmp.setPathSeparatorChar(separator)
 		tmp.SetPath(pathStr.ptr)
 		tmp.PopDir()
@@ -1663,22 +1766,60 @@ Public
 		nullidx=0
 	EndSub
 
+	Function Length() As DWord
+		Length=nullidx
+	EndFunction
+
 	Sub ~FilePathW()
 		Destroy()
 	EndSub
 End Class
 
+Function GetDragFilePath(hDrop As HDROP, iFile As Long, FilePathInstance As *FilePathW) As BOOL
+	Const _GDFP_CBUF_LEN = MAX_PATH*2+4
+	Dim cbuf[_GDFP_CBUF_LEN] As Word
+	Dim dbuf As BytePtr, dbuflen AS DWord
+	Dim ret AS DWord
+
+	if __isWin9x then
+		' 9xはたいていFAT32上で動いているのでMAX_PATHより大きなバッファを使っていれば可変長対応が不要だろうと判断
+		ret = DragQueryFile(hDrop, iFile, cbuf, _GDFP_CBUF_LEN)
+		if ret Then
+			FilePathInstance->SetPathA(cbuf)
+		End If
+	Else
+		ret = DragQueryFileW(hDrop, iFile, NULL, 0)
+		if ret = 0 Then
+			ExitFunction
+		Elseif ret >= _GDFP_CBUF_LEN then
+			dbuflen = ret
+			dbuf = malloc(dbuflen)
+		Else
+			dbuflen = _GDFP_CBUF_LEN
+			dbuf = cbuf
+		End If
+
+		ret = DragQueryFileW(hDrop, iFile, dbuf, dbuflen)
+		
+		FilePathInstance->SetPath(dbuf)
+		
+		if dbuf <> cbuf Then free(dbuf)
+	End If
+
+	GetDragFilePath = ret
+End Function
+
 Const STRCLASS_SPF_BUFFER_WIDE = 1024*2
 Class StringClassW
 Private
 	nullidx As DWord	'nullpos
-	size AS DWord	'buffer size
-	ptrA AS BytePtr	'string(ANSI)
+	size As DWord	'buffer size
+	ptrA As BytePtr	'string(ANSI)
 Public
-	ptr AS WordPtr	'string
+	ptr As WordPtr	'string
 
-	Function cat(text AS WordPtr) AS Long
-		Dim txlen AS DWord
+	Function cat(text As WordPtr) As Long
+		Dim txlen As DWord
 		txlen=lstrlenW(text)
 		requestBuffer(txlen*2)
 		if (nullidx+txlen)*2 >= size Then allocStr(txlen*2+size)
@@ -1687,14 +1828,14 @@ Public
 		ptr[nullidx]=0
 	EndFunction
 
-	Sub insertHead(newStr AS WordPtr)
-		Dim tmp AS WordPtr
+	Sub insertHead(newStr As WordPtr)
+		Dim tmp As WordPtr
 		copyToNewPtr(tmp)
 		set(newStr)
 		cat(tmp)
 	End Sub
 
-	Sub replaceChar(old AS *Word,newc AS *Word)
+	Sub replaceChar(old As *Word,newc As *Word)
 		if nullidx=0 Then ExitSub
 		Dim i As Long
 		Do
@@ -1712,15 +1853,15 @@ Public
 		requestBuffer(nullidx*2+len)
 	End Sub
 
-	Sub addChar(char AS Word)
+	Sub addChar(char As Word)
 		requestBuffer(nullidx+2)
 		ptr[nullidx]=char
 		nullidx++
 		ptr[nullidx]=0
 	End Sub
 
-	Function cpy(text AS WordPtr) AS Long
-		Dim txlen AS DWord
+	Function cpyFrom(text As WordPtr) As Long
+		Dim txlen As DWord
 		txlen=lstrlenW(text)
 		if txlen*2 > size Then allocStr(txlen*2)
 		memcpy(ptr,text,txlen)
@@ -1728,25 +1869,32 @@ Public
 		ptr[nullidx]=0
 	EndFunction
 
-	Function length() AS DWord
+	Function cpyTo(dst As WordPtr, dstlen As Dword) As Long
+		Dim cpySize As Long
+		cpySize = nullidx
+		if cpySize > (dstlen-1) then cpySize = dstlen-1
+		memcpy(dst, ptr, (cpySize+1)*2)
+	End Function
+
+	Function length() As DWord
 		length=nullidx
 	EndFunction
 
-	Function cmp(text AS WordPtr) AS Long
+	Function cmp(text As WordPtr) As Long
 		cmp=lstrcmpW(ptr,text)
 	EndFunction
-	Function cmpi(text AS WordPtr) AS Long
+	Function cmpi(text As WordPtr) As Long
 		cmp=lstrcmpiW(ptr,text)
 	EndFunction
 
 	Function sprintf(lpFormat As WordPtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-		Dim txlen AS DWord
+		Dim txlen As DWord
 		txlen=lstrlenW(lpFormat)
 		if txlen+STRCLASS_SPF_BUFFER_WIDE+nullidx > size then allocStr(txlen*2+STRCLASS_SPF_BUFFER_WIDE+nullidx*2)
 		nullidx+=wsprintfW(ptr+nullidx*2,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	EndFunction
 
-	Sub set(text AS WordPtr)
+	Sub set(text As WordPtr)
 		freeStr()
 		nullidx=lstrlenW(text)
 		allocStr(nullidx*2)
@@ -1769,7 +1917,7 @@ Public
 	EndSub
 
 
-	Sub allocStr(newSize AS DWord)
+	Sub allocStr(newSize As DWord)
 		size=newSize+5
 		if ptr=0 Then 
 			ptr=calloc(size)
@@ -1790,11 +1938,11 @@ Public
 		size=nullidx*2+1
 	EndSub
 
-	Function getString() AS String
+	Function getString() As String
 		getString=MakeStr(GetAnsi())
 	EndFunction
 
-	Function GetAnsi() AS BytePtr
+	Function GetAnsi() As BytePtr
 		if ptrA	<> NULL Then free(ptrA)
 
 	   ' UnicodeからShift-JISに変換
@@ -1816,9 +1964,9 @@ End Class
 'コマンドライン分割ライブラリ
 Class CommandLine
 private 
-	cmdStr AS BytePtr
-	count as Long
-	table AS *BytePtr
+	cmdStr As BytePtr
+	count As Long
+	table As *BytePtr
 
 	Sub freeMem()
 		if cmdStr<>0 Then free(cmdStr):cmdStr=0
@@ -1826,9 +1974,9 @@ private
 		count=0
 	EndSub
 
-	Function SkipDQ(text AS BytePtr,txlen AS Long,offset AS Long) AS Long
+	Function SkipDQ(text As BytePtr,txlen As Long,offset As Long) As Long
 	'	Print
-		Dim i AS Long
+		Dim i As Long
 		For i = offset To txlen
 			if text[i]=Asc(ex"\q") then ExitFor	
 		Next i
@@ -1846,16 +1994,16 @@ Public
 		freeMem()
 	EndSub
 
-	Function GetCount() AS Long
+	Function GetCount() As Long
 		GetCount=count
 	EndFunction
 
-	Function GetCmd(index AS DWord) AS BytePtr
+	Function GetCmd(index As DWord) As BytePtr
 		if index>count-1 Then GetCmd="":ExitFunction
 		GetCmd=table[index]
 	EndFunction
 
-	Function GetCmdString(index AS DWord) AS String
+	Function GetCmdString(index As DWord) As String
 		GetCmdString=MakeStr(table[index])
 	EndFunction
 
@@ -1869,18 +2017,18 @@ Public
 		EndIf
 	EndFunction
 
-	Function ParseCommandLine(text AS BytePtr) AS Long
+	Function ParseCommandLine(text As BytePtr) As Long
 '		OutputDebugString(ex"called\n")
 		if cmdStr<>0 Then freeMem()
 		'確保
-		Dim txlen AS Long
+		Dim txlen As Long
 		txlen=lstrlen(text)
 		cmdStr=calloc(txlen+5)
 		memcpy(cmdStr,text,txlen+1)
 
 		'スペースを数える
 		Dim ExpectedCount=0 As Long
-		Dim i aS Long
+		Dim i As Long
 		For i = 0 To txlen
 			if cmdStr[i]=Asc(" ") Then 
 				ExpectedCount++
@@ -1891,7 +2039,7 @@ Public
 		table=calloc(sizeof(BytePtr)*(ExpectedCount+2)+4)
 		count = 0
 
-		Dim it=0 AS Long	'table index
+		Dim it=0 As Long	'table index
 		For i = 0 To txlen-1
 			if cmdStr[i]<>Asc(" ") and cmdStr[i]<>0 Then
 				'register to table
@@ -1920,9 +2068,9 @@ End Class
 */
 Class CommandLineW
 private 
-	cmdStr AS WordPtr
-	count as Long
-	table AS *WordPtr
+	cmdStr As WordPtr
+	count As Long
+	table As *WordPtr
 
 	Sub freeMem()
 		if cmdStr<>0 Then free(cmdStr):cmdStr=0
@@ -1930,9 +2078,9 @@ private
 		count=0
 	EndSub
 
-	Function SkipDQ(text AS WordPtr,txlen AS Long,offset AS Long) AS Long
+	Function SkipDQ(text As WordPtr,txlen As Long,offset As Long) As Long
 	'	Print
-		Dim i AS Long
+		Dim i As Long
 		For i = offset To txlen
 			if text[i]=Asc(ex"\q") then ExitFor	
 		Next i
@@ -1951,16 +2099,16 @@ Public
 		freeMem()
 	EndSub
 
-	Function GetCount() AS Long
+	Function GetCount() As Long
 		GetCount=count
 	EndFunction
 
-	Function GetCmd(index AS DWord) AS WordPtr
+	Function GetCmd(index As DWord) As WordPtr
 		if index>count-1 Then GetCmd=ex"\0":ExitFunction
 		GetCmd=table[index]
 	EndFunction
 
-	Function GetCmdString(index AS DWord) AS String
+	Function GetCmdString(index As DWord) As String
 		GetCmdString=MakeStr(table[index])
 	EndFunction
 
@@ -1974,18 +2122,18 @@ Public
 		endif
 	Endfunction
 
-	Function ParseCommandLine(text AS WordPtr) AS Long
+	Function ParseCommandLine(text As WordPtr) As Long
 '		OutputDebugString(ex"called\n")
 		if cmdStr<>0 Then freeMem()
 		'確保
-		Dim txlen AS Long
+		Dim txlen As Long
 		txlen=lstrlenW(text)
 		cmdStr=calloc(txlen*sizeof(Word)+5)
 		memcpy(cmdStr,text,txlen*sizeof(Word)+1)
 
 		'スペースを数える
 		Dim ExpectedCount=0 As Long
-		Dim i aS Long
+		Dim i As Long
 		For i = 0 To txlen
 			if cmdStr[i]=Asc(" ") Then 
 				ExpectedCount++
@@ -1996,7 +2144,7 @@ Public
 		table=calloc(sizeof(WordPtr)*(ExpectedCount+2)+4)
 		count = 0
 
-		Dim it=0 AS Long	'table index
+		Dim it=0 As Long	'table index
 		For i = 0 To txlen-1
 			if cmdStr[i]<>Asc(" ") and cmdStr[i]<>0 Then
 				'register to table
@@ -2018,25 +2166,23 @@ Public
 	EndFunction
 End Class
 
-
-
 'ファイルパス用クラス
 Class FilePath
-Private
-	pathStr AS StringClass
-	pNull AS DWord
-	separator AS Char	' \
+protected
+	pathStr As StringClass
+	pNull As DWord
+	separator As Char	' \
 Public
 
 	Sub FilePath()
 		setPathSeparator("\")
 	End Sub
 
-	Sub setPathSeparator(newSeparator as BytePtr)
+	Sub setPathSeparator(newSeparator As BytePtr)
 		separator=newSeparator[0]
 	End Sub
 
-	Sub setPathSeparatorChar(newSeparator as Char)
+	Sub setPathSeparatorChar(newSeparator As Char)
 		separator=newSeparator
 	End Sub
 
@@ -2073,7 +2219,7 @@ Public
 	
 	'拡張子削除
 	Sub deleteExtension()
-		Dim extPtr AS BytePtr
+		Dim extPtr As BytePtr
 		extPtr=PathFindExtension(pathStr.ptr)
 
 		if extPtr=NULL Then ExitSub
@@ -2083,45 +2229,45 @@ Public
 	End Sub
 
 	'文字列やファイル名など追加
-	Sub cat(text as BytePtr)
+	Sub cat(text As BytePtr)
 		pathStr.cat(text)
 	EndSub
 
 	'ファイル存在チェック
-	Function isExist() AS Long
+	Function isExist() As Long
 		isExist=PathFileExists(pathStr.ptr)
 	EndFunction
 
-	Function isDir() AS Long
+	Function isDir() As Long
 		if PathIsDirectory(pathStr.ptr) Then 
-			isDir=FALSE
-		Else
 			isDir=TRUE
+		Else
+			isDir=FASLE
 		EndIf
 	EndFunction
 
-	Function GetPathString() AS String
+	Function GetPathString() As String
 		GetPathString=pathStr.getString()
 	EndFunction
 
-	Function genAddedPath(additionalPath AS BytePtr) AS String
+	Function genAddedPath(additionalPath As BytePtr) As String
 		genAddedPath=sprintfStr("%s%s",pathStr.ptr,additionalPath)
 	EndFunction
 
-	Function GetPath() AS BytePtr
+	Function GetPath() As BytePtr
 		GetPath=pathStr.ptr
 	EndFunction
 
-	Function GetFileName() AS BytePtr
+	Function GetFileName() As BytePtr
 		GetFileName=PathFindFileName(pathStr.ptr)
 	EndFunction
 
-	Function GetFileExt() AS BytePtr
+	Function GetFileExt() As BytePtr
 		GetFileExt=PathFindExtension(pathStr.ptr)
 	EndFunction
 
-	Function GetFileDirString() AS String
-		Dim tmp AS FilePath
+	Function GetFileDirString() As String
+		Dim tmp As FilePath
 		tmp.setPathSeparatorChar(separator)
 		tmp.SetPath(pathStr.ptr)
 		tmp.PopDir()
@@ -2136,6 +2282,7 @@ Public
 	Sub ~FilePath()
 		Destroy()
 	EndSub
+
 End Class
 
 
@@ -2145,7 +2292,7 @@ Class Device
 	
 Public
 	Function IoCommand(ioCommand As DWord) As BOOL
-		Dim dwAB AS DWord
+		Dim dwAB As DWord
 		if DeviceIoControl(hFile,ioCommand,NULL,0,NULL,0,VarPtr(dwAB),NULL)=0 Then _
 			ExitFunction
 		IoCommand=TRUE
@@ -2156,14 +2303,14 @@ End Class
 Const STRCLASS_SPF_BUFFER = 1024
 Class StringClass
 Private
-	bufferSize AS DWord
+	bufferSize As DWord
 	pNull As DWord	'nullpos
-	size AS DWord	'buffer size
+	size As DWord	'buffer size
 Public
-	ptr AS BytePtr	'string
+	ptr As BytePtr	'string
 
-	Function cat(text AS BytePtr) AS Long
-		Dim txlen AS DWord
+	Function cat(text As BytePtr) As Long
+		Dim txlen As DWord
 		txlen=lstrlen(text)
 		if pNull+txlen >= size Then allocStr(txlen+size)
 		memcpy(ptr+pNull,text,txlen)
@@ -2171,14 +2318,14 @@ Public
 		ptr[pNull]=0
 	EndFunction
 
-	Sub insertHead(newStr AS BytePtr)
-		Dim tmp AS BytePtr
+	Sub insertHead(newStr As BytePtr)
+		Dim tmp As BytePtr
 		copyToNewPtr(tmp)
 		set(newStr)
 		cat(tmp)
 	End Sub
 
-	Sub replaceChar(old AS *Byte,newc AS *Byte)
+	Sub replaceChar(old As *Byte,newc As *Byte)
 		if pNull=0 Then ExitSub
 		Dim i As Long
 		Do
@@ -2193,15 +2340,15 @@ Public
 		if pNull+len > size Then allocStr(len+size)
 	End Sub
 
-	Sub addChar(char AS Char)
+	Sub addChar(char As Char)
 		requestBuffer(pNull+1)
 		ptr[pNull]=char
 		pNull++
 		ptr[pNull]=0
 	End Sub
 
-	Function cpy(text AS BytePtr) AS Long
-		Dim txlen AS DWord
+	Function cpy(text As BytePtr) As Long
+		Dim txlen As DWord
 		txlen=lstrlen(text)
 		if txlen > size Then allocStr(txlen)
 		memcpy(ptr,text,txlen)
@@ -2209,25 +2356,25 @@ Public
 		ptr[pNull]=0
 	EndFunction
 
-	Function length() AS DWord
+	Function length() As DWord
 		length=pNull
 	EndFunction
 
-	Function cmp(text AS BytePtr) AS Long
+	Function cmp(text As BytePtr) As Long
 		cmp=lstrcmp(ptr,text)
 	EndFunction
-	Function cmpi(text AS BytePtr) AS Long
+	Function cmpi(text As BytePtr) As Long
 		cmp=lstrcmpi(ptr,text)
 	EndFunction
 
 	Function sprintf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
-		Dim txlen AS DWord
+		Dim txlen As DWord
 		txlen=1024'lstrlen(lpFormat)
 		if txlen+STRCLASS_SPF_BUFFER+pNull > size then allocStr(txlen+STRCLASS_SPF_BUFFER+pNull)
 		pNull+=wsprintf(ptr+pNull,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
 	EndFunction
 
-	Sub set(text AS BytePtr)
+	Sub set(text As BytePtr)
 		freeStr()
 		pNull=lstrlen(text)
 		allocStr(pNull)
@@ -2251,7 +2398,7 @@ Public
 
 	'あとはUnicode系とか、文字列検索とか必要になったら実装 
 
-	Sub allocStr(newSize AS DWord)
+	Sub allocStr(newSize As DWord)
 		size=newSize+5
 		if ptr=0 Then 
 			ptr=calloc(size)
@@ -2271,7 +2418,7 @@ Public
 		size=pNull+1
 	EndSub
 
-	Function getString() AS String
+	Function getString() As String
 		getString=MakeStr(ptr)
 	EndFunction
 
@@ -2289,12 +2436,12 @@ End Class
 '自分のEXEファイルがあるディレクトリを扱う
 Class BinalyDirectory
 Private
-	BinalyRoot AS BytePtr
-	TempString AS BytePtr
-	p AS Word
+	BinalyRoot As BytePtr
+	TempString As BytePtr
+	p As Word
 Public
 	Sub BinalyDirectory()
-		Dim exePath[MAX_PATH+1] AS Byte,i AS Long
+		Dim exePath[MAX_PATH+1] As Byte,i As Long
 		GetModuleFileName(NULL,exePath,MAX_PATH)
 		For i = lstrlen(exePath) To 0 Step -1
 			If exePath[i]=&H5C then ExitFor' \ だったら
@@ -2303,7 +2450,7 @@ Public
 		exePath[i]=0'￥以下を潰す
 		BinalyRoot=calloc(i+2)
 		memcpy(BinalyRoot,exePath,i+1)
-		p=(i+1) AS Word
+		p=(i+1) As Word
 	EndSub
 
 	Sub ~BinalyDirectory()
@@ -2311,15 +2458,15 @@ Public
 		if TempString<>0 Then free(TempString)
 	EndSub
 
-	Function GetBinDir() AS BytePtr
+	Function GetBinDir() As BytePtr
 		GetBinDir=BinalyRoot
 	End Function
 
-	Function MakePath(subPath AS BytePtr) AS BytePtr
+	Function MakePath(subPath As BytePtr) As BytePtr
 		freeTmp()
 		TempString=calloc(p+lstrlen(subPath)+1)
 
-		Dim filtered_subPath AS BytePtr
+		Dim filtered_subPath As BytePtr
 		filtered_subPath = DelDQ(subPath)
 		wsprintf(TempString,"%s%s",BinalyRoot,filtered_subPath)
 		free(filtered_subPath)
@@ -2327,7 +2474,7 @@ Public
 		MakePath=TempString
 	End Function
 
-	Function GetMadePath() AS BytePtr
+	Function GetMadePath() As BytePtr
 		GetMadePath=TempString
 	EndFunction
 
@@ -2341,8 +2488,8 @@ Const SEED_CRC32 = &HEDB88320
 
 Class HashCrc32
 Public
-	_seed as DWord
-	_table AS *DWord
+	_seed As DWord
+	_table As *DWord
 
 Public
 	Sub HashCrc32()
@@ -2350,14 +2497,14 @@ Public
 		_table = NULL
 	End Sub
 
-	Sub SetHashTable(table As BytePtr)
+	Sub SetHashTable(table As DWordPtr)
 		_table = table
 	End Sub	
 
-	Function MakeTable() AS BOOL
+	Function MakeTable() As BOOL
 		_table = calloc(256 * SizeOf(DWord))
 
-		Dim i AS Long, b AS Long, crc AS DWord
+		Dim i As Long, b As Long, crc As DWord
 		For i=0 to 255
 			crc = i
 			For b=0 To 7
@@ -2380,7 +2527,7 @@ Public
 			End If
 		End If
 
-		Dim crc32 AS DWord
+		Dim crc32 As DWord
 		crc32 = &HFFFFFFFF
 		While len
 			crc32 = (crc32 >> 8) xor _table[(crc32 xor data[0]) And &HFF];
@@ -2395,12 +2542,12 @@ End Class
 
 Class ABMatrix
 Public
-	x AS Long	'列数
-	y AS Long 	'行数
+	x As Long	'列数
+	y As Long 	'行数
 Private
-	pMatrix AS *Double
+	pMatrix As *Double
 Public
-	Sub ABMatrix(iny AS Long,inx AS Long)(initMatrix As *Double)
+	Sub ABMatrix(iny As Long,inx As Long)(initMatrix As *Double)
 		x=inx
 		y=iny
 		pMatrix=malloc(sizeof(double)*inx*iny)
@@ -2415,10 +2562,10 @@ Public
 		free(pMatrix) 	:	pMatrix=NULL
 	End Sub
 
-	Sub PrintMatrix()(caption AS BytePtr)
+	Sub PrintMatrix()(caption As BytePtr)
 		if caption=NULL Then caption=""
 		printf(ex"%sMatrix[%08X,%d,%d] : \n",caption,pMatrix,x,y)
-		Dim ix AS Long,iy AS Long
+		Dim ix As Long,iy As Long
 		For iy=0 To y-1
 			For ix= 0 To x-1
 				printfd(ex"%5.2f\t",pMatrix[ix+iy*x])
@@ -2434,16 +2581,16 @@ Public
 		End If
 	End Sub
 
-	Function Get(pos_y AS Long,pos_x AS Long) AS double
+	Function Get(pos_y As Long,pos_x As Long) As double
 		Get=pMatrix[pos_x+pos_y*x]
 	End Function
 
-	Sub Set(value AS double,pos_y AS Long,pos_x AS Long)
+	Sub Set(value As double,pos_y As Long,pos_x As Long)
 		pMatrix[pos_x+pos_y*x]=value
 	End Sub
 
 	Sub MakeUnitMatrix()	'現在の行列を破棄し単位行列にする
-		Dim ix AS Long,iy AS Long
+		Dim ix As Long,iy As Long
 		For iy=0 To y-1
 			For ix= 0 To x-1
 				if ix=iy Then
@@ -2456,11 +2603,11 @@ Public
 	End Sub
 
 	'小行列を取得, excludeした行, 列を除去した行列を返す
-	Function GetSubMatrix(excludeX AS Long,excludeY AS Long) AS *ABMatrix
-		Dim ret AS *ABMatrix 
+	Function GetSubMatrix(excludeX As Long,excludeY As Long) As *ABMatrix
+		Dim ret As *ABMatrix 
 		ret=new ABMatrix(x-1,y-1)
 
-		Dim ix AS Long,iy AS Long,nx AS Long,ny AS Long
+		Dim ix As Long,iy As Long,nx As Long,ny As Long
 		For iy=0 To y-1
 			if iy=excludeY Then Continue
 			For ix= 0 To x-1
@@ -2475,11 +2622,11 @@ Public
 	End Function
 
 	'行列式detを求める
-	Function determinant() AS double
+	Function determinant() As double
 		if x=<1 and y=<1 Then	determinant=pMatrix[0]:ExitFunction
 		if x<>y Then ExitFunction
-		Dim i AS Long,ret AS double
-		Dim work AS *ABMatrix
+		Dim i As Long,ret As double
+		Dim work As *ABMatrix
 		For i=0 To x-1
 			work=GetSubMatrix(i,0)
 			if i Mod 2 = 0 Then
@@ -2493,9 +2640,9 @@ Public
 	End Function
 
 	'行列式による逆行列取得（PDF参照）
-	Function GetInverseMatrix() AS *ABMatrix
-		Dim ix AS Long, iy AS Long, sign AS double
-		Dim retMx As *ABMatrix, subMx AS *ABMatrix, detM AS double
+	Function GetInverseMatrix() As *ABMatrix
+		Dim ix As Long, iy As Long, sign As double
+		Dim retMx As *ABMatrix, subMx As *ABMatrix, detM As double
 		if x=<1 and y=<1 Then	GetInverseMatrix=NULL:ExitFunction
 
 		retMx = new ABMatrix(x,y)	'戻り値の行列
@@ -2517,9 +2664,9 @@ Public
 	End Function
 
 	'LU分解したものを取得(PDF準拠)
-	Sub GetLU(ByRef LMatrix AS *ABMatrix,ByRef UMatrix AS *ABMatrix)
-		Dim retL AS *ABMatrix,retU AS *ABMatrix
-		Dim ix AS Long,iy AS Long,w AS Long, sigma AS double
+	Sub GetLU(ByRef LMatrix As *ABMatrix,ByRef UMatrix As *ABMatrix)
+		Dim retL As *ABMatrix,retU As *ABMatrix
+		Dim ix As Long,iy As Long,w As Long, sigma As double
 
 		retL=new ABMatrix(x,y)
 		retU=new ABMatrix(x,y)
@@ -2578,10 +2725,10 @@ Public
 	End Sub
 
 	'ガウス消去法による逆行列取得
-	Function GaussInverse() AS *ABMatrix
-		Dim ret AS *ABMatrix,tmp AS *ABMatrix
-		Dim ix AS Long,iy AS Long,sx AS Long
-		Dim coff AS double
+	Function GaussInverse() As *ABMatrix
+		Dim ret As *ABMatrix,tmp As *ABMatrix
+		Dim ix As Long,iy As Long,sx As Long
+		Dim coff As double
 
 		ret=new ABMatrix(y,x)	'右側の行列　最初は単位行列
 		ret->MakeUnitMatrix()
@@ -2616,6 +2763,209 @@ Public
 	End Function
 End Class
 
+Class Mutex
+	cs As CRITICAL_SECTION	'バッファー保護用クリティカルセクション	
+Public
+	Sub Mutex()
+		InitializeCriticalSection(cs)
+	End Sub
+	
+	Sub ~Mutex()
+		DeleteCriticalSection(cs)
+	End Sub
+	
+	Sub Lock()		
+		EnterCriticalSection(cs)
+	End Sub
+	
+	Sub Unlock()		
+		LeaveCriticalSection(cs)
+	End Sub
+End Class
+
+Class AutoLock
+	p_mutex AS *Mutex
+Public
+	Sub AutoLock(ByRef mutex As Mutex)
+		p_mutex = VarPtr(mutex)
+		p_mutex->Lock()
+	End Sub
+
+	Sub AutoLock(mutex As *Mutex)
+		p_mutex = mutex
+		p_mutex->Lock()
+	End Sub
+
+	Sub ~AutoLock()
+		p_mutex->Unlock()
+	End Sub
+End Class
+
+Class WindowsEventAPI
+	handle AS HANDLE
+Public
+	Function Init(id AS BytePtr) As BOOL
+		handle=CreateEvent(NULL, TRUE, FALSE, id)
+		if handle then Init = TRUE
+	End Function
+
+	Sub Deinit()
+		CloseHandle(handle)
+		handle = NULL
+	End Sub
+
+	Sub Set()
+		SetEvent(handle)
+	End Sub
+
+	Sub Reset()
+		ResetEvent(handle)
+	End Sub
+
+	Function Wait(timeout AS DWord) As BOOL
+		Dim ret AS DWord
+		ret = WaitForSingleObject(handle, timeout)
+		if ret = WAIT_OBJECT_0 then Wait=TRUE
+	End Function
+
+	Sub ~WindowsEventAPI()
+		if handle then Deinit()
+	End Sub
+End Class
+
+
+Class BufferClass
+Private
+	bufferSize As DWord
+	pNull As DWord	'nullpos
+	size As DWord	'buffer size
+Public
+	ptr As BytePtr	'string
+	Function cat(input As BytePtr, inputSize As DWord) As Long
+		if pNull+inputSize >= size Then alloc(inputSize+size)
+		memcpy(ptr+pNull,input,inputSize)
+		pNull+=inputSize
+	EndFunction
+	Sub setLength(new_size As DWord)
+		if new_size>size then
+			printf(ex"####### ASSERT: BufferClass::setLength err %d\n",new_size)
+			debug
+		endif
+		pNull = new_size
+	End Sub
+/*
+	Sub insertHead(newStr As BytePtr)
+		Dim tmp As BytePtr
+		copyToNewPtr(tmp)
+		set(newStr)
+		cat(tmp)
+	End Sub
+
+	Sub replaceChar(old As *Byte,newc As *Byte)
+		if pNull=0 Then ExitSub
+		Dim i As Long
+		Do
+			if ptr[i]=0 Then ExitSub
+			if ptr[i]=old[0] Then ptr[i]=newc[0]
+			i++
+		Loop
+	End Sub
+
+	'
+	Sub requestBuffer(len As Long)
+		if pNull+len > size Then allocStr(len+size)
+	End Sub
+
+	Sub addChar(char As Char)
+		requestBuffer(pNull+1)
+		ptr[pNull]=char
+		pNull++
+		ptr[pNull]=0
+	End Sub
+
+	Function cpy(text As BytePtr) As Long
+		Dim txlen As DWord
+		txlen=lstrlen(text)
+		if txlen > size Then allocStr(txlen)
+		memcpy(ptr,text,txlen)
+		pNull=txlen
+		ptr[pNull]=0
+	EndFunction*/
+
+	Function length() As DWord
+		length=pNull
+	EndFunction
+/*
+	Function cmp(text As BytePtr) As Long
+		cmp=lstrcmp(ptr,text)
+	EndFunction
+	Function cmpi(text As BytePtr) As Long
+		cmp=lstrcmpi(ptr,text)
+	EndFunction
+
+	Function sprintf(lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord )
+		Dim txlen As DWord
+		txlen=1024'lstrlen(lpFormat)
+		if txlen+STRCLASS_SPF_BUFFER+pNull > size then allocStr(txlen+STRCLASS_SPF_BUFFER+pNull)
+		pNull+=wsprintf(ptr+pNull,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+	EndFunction
+
+	Sub set(text As BytePtr)
+		freeStr()
+		pNull=lstrlen(text)
+		allocStr(pNull)
+		memcpy(ptr,text,pNull)
+	EndSub
+
+	Sub copyToNewPtr(ByRef dest As BytePtr)
+		dest=calloc(pNull+2)
+		memcpy(dest,ptr,pNull+1)
+	endSub
+
+	Sub update()
+		pNull=lstrlen(text)
+		size=pNull
+	EndSub
+
+	Sub TerminateIndex(pos As DWord)
+		ptr[pos]=0
+		pNull=pos
+	EndSub
+
+	'あとはUnicode系とか、文字列検索とか必要になったら実装 
+*/
+	Sub alloc(newSize As DWord)
+		size=newSize+5
+		if ptr=0 Then 
+			ptr=calloc(size)
+		Else
+			ptr=realloc(ptr,size)
+		EndIf
+	EndSub
+
+	Sub _free()
+		if ptr<>0 Then free(ptr):ptr=0
+		pNull=0
+		size=0
+	EndSub
+
+	Sub truncate()
+		ptr=realloc(ptr,pNull+1)
+		size=pNull+1
+	EndSub
+
+	Sub BufferClass()
+		ptr=NULL
+		pNull=0
+	EndSub
+
+	Sub ~BufferClass()
+		_free()
+	EndSub
+End Class
+
+
+
 '------------------------------------------------------
 '			たぶんもう使わない関数
 '------------------------------------------------------
@@ -2623,10 +2973,10 @@ End Class
 
 
 '引数をNULLで区切る。NULL NULLで終わり (例）コマンド\0引数１\0"引数2"\0\0
-Function MakeCmdLine(Text As BytePtr) as BytePtr
-	Dim i AS DWORD,fDQ AS Byte,SP=-1 AS Long'-1でセット待ち
-	dim dbg AS Byte
-	dim  Buf As BytePtr,bi AS DWORD
+Function MakeCmdLine(Text As BytePtr) As BytePtr
+	Dim i As DWORD,fDQ As Byte,SP=-1 As Long'-1でセット待ち
+	dim dbg As Byte
+	dim  Buf As BytePtr,bi As DWORD
 	Const SPR=&H00'区切り文字NULL
 
 	If Text=0 then ExitFunction
@@ -2674,7 +3024,7 @@ EndFunction
 'この関数は指定した番号の引数をとってくる。
 'EX) Text=cmd1\0cmd2\0opt1\0"path"\0\0
 '2を指定すれば3つ目の「opt1」の開始アドレス0xAが返ってくる。MakeStr(Text+0xA)で「opt1」という文字列を取り出せる。
-Function GetCmdAdr(Text AS BytePtr,Num As Byte) AS DWORD
+Function GetCmdAdr(Text As BytePtr,Num As Byte) As DWORD
 	Dim i As DWORD,C As Byte
 	If Num=0 then GetCmdAdr=0:ExitFunction
 	Do

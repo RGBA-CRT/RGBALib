@@ -23,20 +23,15 @@ Declare Function PathFindFileName Lib "SHLWAPI.DLL" Alias "PathFindFileNameA" (p
 Declare Function PathFindExtension Lib "SHLWAPI.DLL" Alias "PathFindExtensionA" (pszPath As BytePtr) As BytePtr
 Declare Function PathRemoveFileSpec Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecA" (pszPath As BytePtr) As Long
 Declare Function PathRenameExtension Lib "SHLWAPI.DLL" Alias "PathRenameExtensionA" (pszPath As BytePtr,newExt AS BytePtr) As Long
- 
-Declare Function PathUnquoteSpacesW Lib "SHLWAPI.DLL" Alias "PathUnquoteSpacesW" (pszPath As WordPtr) As Long
-Declare Function PathRemoveBlanksW Lib "SHLWAPI.DLL" Alias "PathRemoveBlanksW" (pszPath As WordPtr) As Long
-Declare Function PathFileExistsW Lib "SHLWAPI.DLL" Alias "PathFileExistsW" (pszPath As BytePtr) As Long
-Declare Function PathAddBackslashW Lib "SHLWAPI.DLL" Alias "PathAddBackslashW" (pszPath As BytePtr) As Long
-Declare Function PathCompactPathExW Lib "SHLWAPI.DLL" Alias "PathCompactPathExW" (pszOut As BytePtr, pszSrc As BytePtr, cchMax As Long, dwFlags As Long) As Long
-Declare Function PathIsDirectoryW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryW" (pszPath As BytePtr) As Long
-Declare Function PathIsDirectoryEmptyW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryEmptyW" (pszPath As BytePtr) As Long
-Declare Sub PathStripPathW Lib "SHLWAPI.DLL" Alias "PathStripPathW" (pszPath As BytePtr)
-Declare Sub PathUndecorateW Lib "SHLWAPI.DLL" Alias "PathUndecorateW" (pszPath As BytePtr)
-Declare Function PathFindFileNameW Lib "SHLWAPI.DLL" Alias "PathFindFileNameW" (pszPath As BytePtr) As BytePtr
-Declare Function PathFindExtensionW Lib "SHLWAPI.DLL" Alias "PathFindExtensionW" (pszPath As BytePtr) As BytePtr
-Declare Function PathRemoveFileSpecW Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecW" (pszPath As BytePtr) As Long
-Declare Function PathRenameExtensionW Lib "SHLWAPI.DLL" Alias "PathRenameExtensionW" (pszPath As BytePtr,newExt AS BytePtr) As Long
+
+Declare Function PathGetCharType Lib "SHLWAPI.DLL" Alias "PathGetCharTypeA" (c As Byte) As Long
+
+Const GCT_INVALID = &H0
+Const GCT_LFNCHAR = &H1
+Const GCT_SEPARATOR = &H8
+Const GCT_SHORTCHAR = &H2
+Const GCT_WILD = &H4
+
 
 Declare Function MakeSureDirectoryPathExists Lib "imagehlp" (lpPath As BytePtr) As Long
 
@@ -898,7 +893,13 @@ Declare Function CreateDIBSection Lib "gdi32" ( hdc As Long,ByRef pBitmapInfo As
 'String
 Declare Function lstrcpyn Lib "Kernel32.dll" Alias "lstrcpynA" (str1 as BytePtr,str2 as BytePtr,limit AS DWord) As BytePtr
 
+Declare Function VirtualProtect Lib "kernel32" Alias "VirtualProtect" (lpAddress As VoidPtr,  dwSize As Long, flNewProtect As Long, lpflOldProtect As Long) As Long
 
+
+
+Declare Function CreateEvent Lib "Kernel32" Alias "CreateEventA" (lpEventAttributes As *SECURITY_ATTRIBUTES, bManualReset As Long, bInitialState As Long, lpName As String) As Long
+Declare Function SetEvent Lib "kernel32" (hEvent As Long) As Long
+Declare Function ResetEvent Lib "kernel32" (hEvent As Long) As Long
 
 /*--------- 定数宣言部 -----------*/
 Const MUTEX_ALL_ACCESS	= &H001F0001
@@ -1156,3 +1157,59 @@ public
 	EndSub
 End Class
 
+
+
+
+
+' ============ UNICODE(UTF-16) API Defs ============
+
+' Win95で使えるUnicodeAPIのみ
+' ref: http://seclan.dll.jp/dtdiary/2010/dt20100310.htm
+Declare Function lstrlenW Lib "kernel32" (lpString As WordPtr) As Long
+Declare Function GetCommandLineW Lib "kernel32" () As WordPtr
+
+' SHLWAPI: Win95にIE4のインストールが必要
+Declare Function PathUnquoteSpacesW Lib "SHLWAPI.DLL" Alias "PathUnquoteSpacesW" (pszPath As WordPtr) As Long
+Declare Function PathRemoveBlanksW Lib "SHLWAPI.DLL" Alias "PathRemoveBlanksW" (pszPath As WordPtr) As Long
+Declare Function PathFileExistsW Lib "SHLWAPI.DLL" Alias "PathFileExistsW" (pszPath As WordPtr) As Long
+Declare Function PathAddBackslashW Lib "SHLWAPI.DLL" Alias "PathAddBackslashW" (pszPath As WordPtr) As Long
+Declare Function PathCompactPathExW Lib "SHLWAPI.DLL" Alias "PathCompactPathExW" (pszOut As WordPtr, pszSrc As WordPtr, cchMax As Long, dwFlags As Long) As Long
+Declare Function PathIsDirectoryW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryW" (pszPath As WordPtr) As Long
+Declare Function PathIsDirectoryEmptyW Lib "SHLWAPI.DLL" Alias "PathIsDirectoryEmptyW" (pszPath As WordPtr) As Long
+Declare Sub PathStripPathW Lib "SHLWAPI.DLL" Alias "PathStripPathW" (pszPath As WordPtr)
+Declare Sub PathUndecorateW Lib "SHLWAPI.DLL" Alias "PathUndecorateW" (pszPath As WordPtr)
+Declare Function PathFindFileNameW Lib "SHLWAPI.DLL" Alias "PathFindFileNameW" (pszPath As WordPtr) As WordPtr
+Declare Function PathFindExtensionW Lib "SHLWAPI.DLL" Alias "PathFindExtensionW" (pszPath As WordPtr) As WordPtr
+Declare Function PathRemoveFileSpecW Lib "SHLWAPI.DLL" Alias "PathRemoveFileSpecW" (pszPath As WordPtr) As Long
+Declare Function PathRenameExtensionW Lib "SHLWAPI.DLL" Alias "PathRenameExtensionW" (pszPath As WordPtr,newExt As WordPtr) As Long
+
+' msvcrt: Win95でも入っていることが多い？
+' tested: Win95 with msvcrt v4.20
+Declare Function wcscpy Lib "msvcrt" (dst As WordPtr,src As WordPtr) As Long
+
+#define AB_UNICODE_STATIC
+#ifdef AB_UNICODE_STATIC
+	' Win9x not supported functions
+
+	' KERNEL32
+	'Declare Function lstrcpyW Lib "kernel32" (lpString As WordPtr,lpString As WordPtr) As Long '非推奨。Win98以降
+	Declare Function SetConsoleTitleW Lib "kernel32" Alias "SetConsoleTitleW" ( lpConsoleTitle As WordPtr) As Long 
+	Declare Function GetConsoleTitleW Lib "kernel32" Alias "GetConsoleTitleW" ( lpConsoleTitle As WordPtr,  nSize As Long) As Long 
+	Declare Function CreateFileW Lib "kernel32" Alias "CreateFileW" (lpFileName As *Byte, dwDesiredAccess As DWord, dwShareMode As DWord, ByRef lpSecurityAttributes As SECURITY_ATTRIBUTES, dwCreationDisposition As DWord, dwFlagsAndAttributes As DWord, hTemplateFile As HANDLE) As HANDLE
+	Declare Function GetShortPathNameW Lib "kernel32" (pszLongPath As WordPtr,pszShortPath As WordPtr,cchBuffer AS DWord) As DWord
+
+	'COMDLG32
+	Declare Function GetSaveFileNameW Lib "comdlg32" Alias "GetSaveFileNameW" (ByRef lpofn As OPENFILENAME) As Long
+	Declare Function GetOpenFileNameW Lib "comdlg32" Alias "GetOpenFileNameW" (ByRef lpofn As OPENFILENAME) As Long
+
+	'USER32
+	Declare Function MessageBoxW Lib "user32" Alias "MessageBoxW" (hWnd As HWND, lpText As WordPtr, lpCaption As WordPtr, uType As DWord) As Long
+	Declare Function SetWindowTextW Lib "user32" Alias "SetWindowTextW" (hWnd As HWND, lpString As WordPtr) As Long
+
+	Declare Function CreateWindowExW Lib "user32" Alias "CreateWindowExW" (dwExStyle As DWord, lpClassName As WordPtr, lpWindowName As WordPtr, _
+			dwStyle As DWord, x As Long, y As Long, nWidth As Long, nHeight As Long, hWndParent As HWND, hMenu As HMENU, hInstance As HINSTANCE, lpParm As VoidPtr) As HWND
+	Declare Function SetWindowLongW Lib "user32" Alias "SetWindowLongW" (hWnd As HWND, nIndex As Long, NewLong As LONG_PTR) As LONG_PTR
+
+	'SHELL32
+	Declare Function DragQueryFileW Lib "shell32" Alias "DragQueryFileW" (hDrop As HDROP, iFile As Long, lpszFile As WordPtr, cch As DWord) As DWord
+#endif
