@@ -12,6 +12,7 @@
 
 ' %fが使える
 Declare Function printfvc cdecl Lib "msvcrt.dll" Alias "printf" (str As BytePtr,format As BytePtr, ...) As Long
+Declare Function printfvc4 cdecl Lib "msvcrt.dll" Alias "printf" (str As BytePtr,format As BytePtr, ...) As Long
 Declare Function printfd cdecl Lib "msvcrt.dll" Alias "printf" (format As BytePtr, v1 As Double,...) As Long
 Declare Function sprintfvc cdecl Lib "msvcrt.dll" Alias "sprintf" (str As BytePtr,format As BytePtr, ...) As Long
 Declare Function sprintfd cdecl Lib "msvcrt.dll" Alias "sprintf" (str As BytePtr,format As BytePtr, d1 As double,...) As Long
@@ -164,7 +165,7 @@ Function CreateTooltip(hOwner As HWND, hTooltip As *HANDLE, stTool As *TOOLINFO,
 End Function
 
 
-Function GetCheckBox(Ctrl As HWND) As Byte
+Function GetCheckBox(Ctrl As HWND) As BOOL
 	If SendMessage(Ctrl,BM_GETCHECK,0,0) = BST_CHECKED then
 		GetCheckBox=TRUE
 	Else
@@ -1114,37 +1115,51 @@ Sub PauseConsole()
 EndSub
 
 Function Dump(Data As BytePtr,Size As DWORD)(VAdr As DWORD,noHeader As BOOL) As DWORD
-	Dim Tmp[&H20] As Byte,i As Long,Adr As DWORD
-	
+	Dim buf[70] As Byte,p As BytePtr, i As Long,Adr As DWORD
+		
 	'SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED)
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), &H0070)
 	if VAdr=0 Or noHeader=FALSE then PrintPtr( ex" ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F  0123456789ABCDEF \n")
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
+	SetConsoleTextAttribute(_System_hConsoleOut, 1 OR 2 OR 3 OR 4)
 	Do
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), &H10  OR 4 OR 3 )
+		SetConsoleTextAttribute(_System_hConsoleOut, &H10  OR 4 OR 3 )
 		printf("%08X  ",Adr+VAdr)
-		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 1 OR 2 OR 3 OR 4)
+		SetConsoleTextAttribute(_System_hConsoleOut, 1 OR 2 OR 3 OR 4)
 '		Print " ";
+		p=buf
 		For i=0 To &H0F
 			if Adr+i=>Size then
-				printf("-- ",0)
+				p+=wsprintf(p, "-- ")
 			Else 
-				printf("%02X ",Data[Adr+i])
+				p+=wsprintf(p, "%02X ",Data[Adr+i])
 			EndIf
 		Next i
-		PrintPtr(" ")
+		p[0] = GetByte(" ")
+		p++
 		For i=0 To &H0F
-			if Adr+i=>Size then Goto *EXIT_LOOP
-			if Data[Adr+i]<&H20 or Data[Adr+i]=&HFF then 
-				PrintPtr(".")
+			if Adr+i=>Size then 
+				p[0] = GetByte(" ")
+				p++
 			Else
-				printf("%1c",Data[Adr+i])
-			EndIf
+				if Data[Adr+i]<&H20 or Data[Adr+i]=&HFF then 
+					p[0] = GetByte(".")
+					p++
+				Else
+					p[0] = Data[Adr+i]
+					p++
+				EndIf
+			endif
 		Next i
 		i=0
+'		PrintPtr(ex"\n")
+		p[0] = GetByte(ex" ")
+		p[1] = GetByte(ex"\n")
+		p[2] = 0
+		PrintPtr(buf)
+		'MessageBox(0,"L",0,0)
 		Adr+=&H10
 		if Adr+i=>Size then Goto *EXIT_LOOP
-		PrintPtr(ex"\n")
+'		
 	Loop
 *EXIT_LOOP
 	PrintPtr(ex"\n")
@@ -1734,6 +1749,7 @@ Public
 		if PathFileExists(dstText) <> TRUE And useShortPathWhenNonAnsiPath then
 			Dim lbuf[MAX_PATH] As Word
 			GetShortPathNameW(pathStr.ptr, lbuf, 4096)
+			Dump(lbuf,128)
 			Wide2AnsiEx(lbuf, dstText, dstLen)
 		End If
 	EndFunction
@@ -2003,6 +2019,11 @@ Public
 		GetCmd=table[index]
 	EndFunction
 
+	Function GetCmdWithDefault(index As DWord, default AS BytePtr) As BytePtr
+		if index>count-1 Then GetCmdWithDefault=default:ExitFunction
+		GetCmdWithDefault=table[index]
+	EndFunction
+
 	Function GetCmdString(index As DWord) As String
 		GetCmdString=MakeStr(table[index])
 	EndFunction
@@ -2164,6 +2185,12 @@ Public
 		it++
 		table[it]=0
 	EndFunction
+	Sub MakeCommandLineA(ByRef cmd AS CommandLine)
+		Dim txt as BytePtr
+		txt = Wide2Ansi(cmdStr)
+		cmd.ParseCommandLine(txt)
+		free(txt)
+	End Sub
 End Class
 
 'ファイルパス用クラス

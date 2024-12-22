@@ -10,7 +10,7 @@ Function OpenFile(Path As BytePtr,_Mode AS DWORD) AS HANDLE
 		CreateMode=OPEN_ALWAYS
 	EndIf
 	OpenFile=CreateFile(Path, _Mode, FILE_SHARE_READ or FILE_SHARE_WRITE, ByVal 0,CreateMode, FILE_ATTRIBUTE_NORMAL, 0)
-	If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
+'	If OpenFile=INVALID_HANDLE_VALUE then OpenFile = -1 As VoidPtr
 EndFunction
 
 '–ß‚è’l‚ª-1‚©‚çNULL‚É‚È‚Á‚½
