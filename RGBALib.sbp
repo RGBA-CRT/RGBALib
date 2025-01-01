@@ -1,6 +1,6 @@
 'RGBA_CRT's Librarys
-#include <RGBADef.sbp>
-#include <EasyIO.sbp>
+#include "RGBADef.sbp"
+#include "EasyIO.sbp"
 /*  Todo : 
 		HTTP系をクラスに
 */
@@ -306,7 +306,7 @@ End Function
 
 ' Note: CP_UTF8 is supported Windows 98/Me, Windows NT 4.0 and later
 Function UTF8ToSJIS(utf8Str As BytePtr) As BytePtr
-	Dim l As Long,uni As BytePtr
+	Dim l As Long,uni As WordPtr
 	l=MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0)
 	if l=0 then
 		UTF8ToSJIS=calloc(64)
@@ -1651,7 +1651,7 @@ Public
 		FileDlgSetupW(VarPtr(ofn),hWnd,OFN_OVERWRITEPROMPT,defFileName,defExt,extList)
 		SaveFileDlg = GetSaveFileNameW(ofn)
 		if SaveFileDlg Then
-			SetPath(ofn.lpstrFile)
+			SetPath(ofn.lpstrFile As WordPtr)
 		End If
 		free(ofn.lpstrFile)
 	End Function
@@ -1749,7 +1749,7 @@ Public
 		if PathFileExists(dstText) <> TRUE And useShortPathWhenNonAnsiPath then
 			Dim lbuf[MAX_PATH] As Word
 			GetShortPathNameW(pathStr.ptr, lbuf, 4096)
-			Dump(lbuf,128)
+			Dump(lbuf As BytePtr,128)
 			Wide2AnsiEx(lbuf, dstText, dstLen)
 		End If
 	EndFunction
@@ -1794,14 +1794,14 @@ End Class
 Function GetDragFilePath(hDrop As HDROP, iFile As Long, FilePathInstance As *FilePathW) As BOOL
 	Const _GDFP_CBUF_LEN = MAX_PATH*2+4
 	Dim cbuf[_GDFP_CBUF_LEN] As Word
-	Dim dbuf As BytePtr, dbuflen AS DWord
+	Dim dbuf As WordPtr, dbuflen AS DWord
 	Dim ret AS DWord
 
 	if __isWin9x then
 		' 9xはたいていFAT32上で動いているのでMAX_PATHより大きなバッファを使っていれば可変長対応が不要だろうと判断
-		ret = DragQueryFile(hDrop, iFile, cbuf, _GDFP_CBUF_LEN)
+		ret = DragQueryFile(hDrop, iFile, cbuf As BytePtr, _GDFP_CBUF_LEN)
 		if ret Then
-			FilePathInstance->SetPathA(cbuf)
+			FilePathInstance->SetPathA(cbuf As BytePtr)
 		End If
 	Else
 		ret = DragQueryFileW(hDrop, iFile, NULL, 0)
@@ -2125,7 +2125,10 @@ Public
 	EndFunction
 
 	Function GetCmd(index As DWord) As WordPtr
-		if index>count-1 Then GetCmd=ex"\0":ExitFunction
+		if index>count-1 Then
+			GetCmd=ex"\0" As WordPtr
+			ExitFunction
+		End If
 		GetCmd=table[index]
 	EndFunction
 

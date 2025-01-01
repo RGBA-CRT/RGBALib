@@ -882,7 +882,7 @@ Const CALLBACK_TASK	= &H00020000
 Const CALLBACK_THREAD	= &H00020000
 Const CALLBACK_EVENT	= &H00050000
 
-Declare Function CheckMenuItem Lib "user32" Alias "CheckMenuItem" (hMenu As Long, wIDCheckItem As Long, wCheck As Long) As Long
+Declare Function CheckMenuItem Lib "user32" Alias "CheckMenuItem" (hMenu As HMENU, wIDCheckItem As Long, wCheck As Long) As Long
 
 
 'Other
@@ -891,6 +891,7 @@ Declare Function SetLastError Lib "kernel32" (dwErrCode As DWORD) As DWord
 'GDI
 Declare Function CreateDIBSection Lib "gdi32" ( hdc As Long,ByRef pBitmapInfo As BITMAPINFO,  un As Long,  lplpVoid As VoidPtr,  handle As Long,  dw As Long) As Long
 'Declare Function TransparentBlt Lib "msimg32.dll" (hDC As HDC,X As Long,Y As Long,Width As Long,Height As Long,hSrcDC As HDC,SrcX As Long,  SrcY As Long,SrcWidth As Long,SrcHeight As Long,TransparentColor As Long) As Long 
+Declare Function ExtTextOut Lib "gdi32" Alias "ExtTextOutA" (hdc As HDC, x As Long, y As Long, wOptions As Long, lpRect As *Rect, lpString As BytePtr, nCount As Long, lpDx As Long) As Long
 
 Declare Function SetTextCharacterExtra Lib "gdi32" Alias "SetTextCharacterExtra" (ByVal hdc As Long, ByVal nCharExtra As Long) As Long
 
