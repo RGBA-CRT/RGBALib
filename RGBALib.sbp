@@ -2342,7 +2342,10 @@ Public
 	Function cat(text As BytePtr) As Long
 		Dim txlen As DWord
 		txlen=lstrlen(text)
-		if pNull+txlen >= size Then allocStr(txlen+size)
+
+		Dim buflen AS DWord
+		buflen = (pNull+txlen+1)
+		if buflen >= size Then allocStr(buflen)
 		memcpy(ptr+pNull,text,txlen)
 		pNull+=txlen
 		ptr[pNull]=0
@@ -2380,7 +2383,10 @@ Public
 	Function cpy(text As BytePtr) As Long
 		Dim txlen As DWord
 		txlen=lstrlen(text)
-		if txlen > size Then allocStr(txlen)
+		
+		Dim buflen AS DWord
+		buflen = (txlen+1)
+		if buflen > size Then allocStr(buflen)
 		memcpy(ptr,text,txlen)
 		pNull=txlen
 		ptr[pNull]=0
@@ -2996,6 +3002,25 @@ End Class
 
 
 
+Function LoadFileToMemory(filename AS BytePtr, buf AS *BufferClass) AS BOOL
+	Dim in As File
+	if in.openFile(filename, GENERIC_READ) = FALSE then ExitFunction
+
+	buf->alloc(in.length())
+	buf->setLength(in.length())
+
+	Dim ret AS Long
+	ret =  in.read(buf->ptr, in.length())
+	if ret <= 0 then
+		printf(ex"### LoadFile fail. expect=%d, real=%d\n", in.length(), ret)
+		in.close()
+		buf->_free()
+		ExitFunction
+	End If
+
+	in.close()
+	LoadFileToMemory=TRUE
+End Function
 '------------------------------------------------------
 '			ÇΩÇ‘ÇÒÇ‡Ç§égÇÌÇ»Ç¢ä÷êî
 '------------------------------------------------------

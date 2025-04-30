@@ -1191,6 +1191,7 @@ Declare Function PathRenameExtensionW Lib "SHLWAPI.DLL" Alias "PathRenameExtensi
 ' msvcrt: Win95Ç≈Ç‡ì¸Ç¡ÇƒÇ¢ÇÈÇ±Ç∆Ç™ëΩÇ¢ÅH
 ' tested: Win95 with msvcrt v4.20
 Declare Function wcscpy Lib "msvcrt" (dst As WordPtr,src As WordPtr) As Long
+'Declare Function memcmp Lib "msvcrt.dll" Alias "memcmp" (buf1 AS BytePtr, buf2 AS BytePtr, size AS Long) As Long
 
 #define AB_UNICODE_STATIC
 #ifdef AB_UNICODE_STATIC
