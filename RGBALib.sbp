@@ -177,6 +177,14 @@ Function SetCheckBox(Ctrl As HWND,bValue As BOOL) As Byte
 	SendMessage(Ctrl,BM_SETCHECK,bValue,bValue)
 End Function
 
+Sub SetWindowTextFormat(hWnd AS HANDLE, lpFormat As BytePtr)(a As DWord ,b As DWord ,c As DWord ,d As DWord ,e As DWord ,f As DWord ,g As DWord ,h As DWord ,i As DWord ,j As DWord ,k As DWord ,l As DWord ,m As DWord ,n As DWord ) 
+	Dim dbuf[1024] As Byte
+	Dim p AS DWord
+	p=wsprintf(dbuf,lpFormat,a,b,c,d,e,f,g,h,i,j,k,l,m,n)
+
+	SetWindowText(hWnd, dbuf)
+EndSub
+
 
 '----------------------
 '		Binaly
@@ -1177,6 +1185,15 @@ Sub colorPrint(color As DWord,str As BytePtr)
 	PrintPtr(str)
 	SetConsoleColor(CC_DEFAULT)
 End Sub
+
+' WinAPI wrapper. this API is available on Vista or later.
+Function SetConsoleOutputCP(cp AS Long) AS BOOL
+	Dim func AS *Function(cp AS Long) AS BOOL
+	func = GetProcAddress(GetModuleHandle("Kernel32"), "SetConsoleOutputCP")
+	if func then
+		SetConsoleOutputCP = func(cp)
+	endif
+End Function
 
 
 
