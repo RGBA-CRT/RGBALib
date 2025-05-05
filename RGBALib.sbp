@@ -1187,6 +1187,7 @@ Sub colorPrint(color As DWord,str As BytePtr)
 End Sub
 
 ' WinAPI wrapper. this API is available on Vista or later.
+Const CP_JPN = 932
 Function SetConsoleOutputCP(cp AS Long) AS BOOL
 	Dim func AS *Function(cp AS Long) AS BOOL
 	func = GetProcAddress(GetModuleHandle("Kernel32"), "SetConsoleOutputCP")
