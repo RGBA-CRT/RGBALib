@@ -508,12 +508,14 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 	Dim l As Long
 	Dim lp As Long
 	Dim CRLFD As *Byte
+	Dim dstsize AS Long
 
 	ti=0
 	ci=0
 
 	l= lstrlen(Text)
-	CRLFD=calloc2(l+5)
+	dstsize = l*2
+	CRLFD=calloc2(dstsize)
 
 	Do
 		if Text[ti] = &H0A then				'0A(LF)が発見され、
@@ -522,7 +524,10 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 				ci++
 				l++
 				lp++
-				CRLFD=realloc2(CRLFD,l+lp*2)	'増えた分のメモリ確保
+				if l+lp*2 > dstsize then
+					dstsize += dstsize/2
+					CRLFD=realloc2(CRLFD,dstsize)	'増えた分のメモリ確保
+				endif
 				CRLFD[ci]=&H0A				'そしてLFを追加
 			Else
 				CRLFD[ci]=&H0A				'違ったら（正しくCRLFになってたら）そのまま
@@ -533,7 +538,10 @@ Function ConvCRLF(Text As *Byte) As BytePtr
 				ci++
 				l++
 				lp++
-				CRLFD=realloc2(CRLFD,l+lp*2)
+				if l+lp*2 > dstsize then
+					dstsize += dstsize/2
+					CRLFD=realloc2(CRLFD,dstsize)	'増えた分のメモリ確保
+				endif
 				CRLFD[ci]=&H0A
 			Else
 				CRLFD[ci]=&H0D
