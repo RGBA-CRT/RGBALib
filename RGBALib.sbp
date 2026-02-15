@@ -1312,16 +1312,26 @@ Function SetComTimeOut(hSerialPort As HANDLE, TimeOut As DWord) As Byte
 	SetCommTimeouts(hSerialPort, VarPtr(ct))
 End Function
 
-Sub ChangeComBaudrate(hSerial As HANDLE, rate As DWord)
+Function ChangeComBaudrate(hSerial As HANDLE, rate As DWord) As Long
 	Dim dcb As DCB_SETTING
+	
+'	logger(ex"TrapE-1\n")
 	GetCommState(hSerial, dcb)
+'	logger(ex"TrapE-2\n")
 	dcb.BaudRate = rate '転送速度の指定
-	SetCommState(hSerial, dcb)
+	if SetCommState(hSerial, dcb) = 0 then
+		ChangeComBaudrate = GetLastError()
+		printf(ex"SetCommState failed. gle=%d\n", GetLastError())
+	End If
+'	logger(ex"TrapE-3\n")
 	
 	FlushCom(hSerial)
+'	logger(ex"TrapE-4\n")
 	
 	GetCommState(hSerial, dcb)
-End Sub
+	
+'	logger(ex"TrapE-5\n")
+End function
 
 
 '---------------
@@ -1517,6 +1527,9 @@ Protected
 	hFile As HANDLE
 Public
 	path As FilePath
+	Sub ~File()
+
+	EndSub
 	Function _openFile(_Mode As DWORD) As BOOL
 		Dim CreateMode As Dword
 		If _Mode=GENERIC_READ then
@@ -2456,6 +2469,10 @@ Public
 	Sub TerminateIndex(pos As DWord)
 		ptr[pos]=0
 		pNull=pos
+	EndSub
+	Sub TerminateChar(letter AS BytePtr)
+		replaceChar(letter, ex"\x00")
+		pNull=lstrlen(ptr)
 	EndSub
 
 	'あとはUnicode系とか、文字列検索とか必要になったら実装 
