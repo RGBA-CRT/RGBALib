@@ -2925,6 +2925,10 @@ Public
 		memcpy(ptr+pNull,input,inputSize)
 		pNull+=inputSize
 	EndFunction
+	Function cpy(input As BytePtr, inputSize As DWord) As Long
+		pNull = 0
+		cat(input, inputSize)
+	EndFunction
 	Sub setLength(new_size As DWord)
 		if new_size>size then
 			printf(ex"####### ASSERT: BufferClass::setLength err %d\n",new_size)
