@@ -1198,7 +1198,7 @@ End Sub
 Const CP_JPN = 932
 Function SetConsoleOutputCP(cp AS Long) AS BOOL
 	Dim func AS *Function(cp AS Long) AS BOOL
-	func = GetProcAddress(GetModuleHandle("Kernel32"), "SetConsoleOutputCP")
+	func = GetProcAddress(GetModuleHandle("Kernel32"), "SetConsoleOutputCP") As VoidPtr
 	if func then
 		SetConsoleOutputCP = func(cp)
 	endif
