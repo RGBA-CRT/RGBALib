@@ -484,7 +484,7 @@ Function DelDQW(Text As WordPtr) As WordPtr
 EndFunction
 
 ' DelDqExW, Win95+IE4 required
-Function NormalizePathW_AutoAlloc(Text As WordPtr, newTextBuffer As *WordPtr) As Long
+Function NormalizePathW_AutoAlloc_old(Text As WordPtr, newTextBuffer As *WordPtr) As Long
 	Dim tmp As WordPtr
 	Dim txlen As DWord
 
@@ -492,10 +492,54 @@ Function NormalizePathW_AutoAlloc(Text As WordPtr, newTextBuffer As *WordPtr) As
 	txlen = lstrlenW(Text)
 	tmp   = malloc(txlen*2+2)
 	memcpy(tmp,Text,txlen*2+2) '+2 = null cahr
+	
 
 	' normalize
 	PathRemoveBlanksW(tmp)
 	PathUnquoteSpacesW(tmp)
+
+	SetDWord(newTextBuffer, tmp)
+	NormalizePathW_AutoAlloc = txlen
+EndFunction
+
+
+' DelDqExW, IE4不要
+Function NormalizePathW_AutoAlloc(Text As WordPtr, newTextBuffer As *WordPtr) As Long
+	Dim tmp As WordPtr
+	Dim txlen As DWord
+
+	'copy text
+	txlen = lstrlenW(Text)
+'	Dump(Text,(txlen<<1)+2)
+
+	' 開始何文字スキップするかチェック
+	Dim i As DWord
+	For i=0 to txlen
+		if NOT((Text[i] = &H0020) _ 'スペース
+				OR (Text[i] = &H0009 ) _ '水平タブ
+				OR (Text[i] = &H0022)) then 'ダブルクォーテーション
+			exitfor
+		endif
+	Next
+	
+	txlen = txlen - i
+	tmp   = malloc(txlen*2+2)
+
+	' 開始スキップしてコピー
+	memcpy(tmp, Text+(i<<1), ((txlen)<<1)+2) '+2 = null cahr
+
+	' 末尾埋め
+	For i=txlen to 0 Step -1
+		if (tmp[i] = &H0020) _ 'スペース
+				OR (tmp[i] = &H0009 ) _ '水平タブ
+				OR (tmp[i] = &H0000 ) _ 'null文字
+				OR (tmp[i] = &H0022) then 'ダブルクォーテーション
+			tmp[i] = 0
+		else
+			exitfor
+		endif
+	Next
+'	Dump(tmp,(txlen<<1)+2)
 
 	SetDWord(newTextBuffer, tmp)
 	NormalizePathW_AutoAlloc = txlen
@@ -1748,7 +1792,14 @@ Public
 
 	'ファイル存在チェック
 	Function isExist() As Long
-		isExist=PathFileExistsW(pathStr.ptr)
+		' Windows95のIE4以前ではUnimplementでエラーになるので代替
+		if IsWin9x() then
+			Dim lbuf[_GPEA_LBUF_LEN] As Byte
+			CopyPathToBufA(lbuf, _GPEA_LBUF_LEN, TRUE)
+			isExist=PathFileExists(lbuf)			
+		Else
+			isExist=PathFileExistsW(pathStr.ptr)
+		endif
 	EndFunction
 
 	Function isDir() As Long
